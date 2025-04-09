@@ -12,6 +12,7 @@ The genesis configuration for a chain is specified with a
 [`GenesisConfiguration`]: ref:ethereum.genesis.GenesisConfiguration
 [`add_genesis_block`]: ref:ethereum.genesis.add_genesis_block
 """
+
 import json
 import pkgutil
 from dataclasses import dataclass
@@ -134,9 +135,7 @@ BlockT = TypeVar("BlockT")
 
 @slotted_freezable
 @dataclass
-class GenesisFork(
-    Generic[AddressT, AccountT, StateT, TrieT, BloomT, HeaderT, BlockT]
-):
+class GenesisFork(Generic[AddressT, AccountT, StateT, TrieT, BloomT, HeaderT, BlockT]):
     """
     Pointers to the various types and functions required to build a genesis
     block.
@@ -156,9 +155,7 @@ class GenesisFork(
 
 
 def add_genesis_block(
-    hardfork: GenesisFork[
-        AddressT, AccountT, StateT, TrieT, BloomT, HeaderT, BlockT
-    ],
+    hardfork: GenesisFork[AddressT, AccountT, StateT, TrieT, BloomT, HeaderT, BlockT],
     chain: Any,
     genesis: GenesisConfiguration,
 ) -> None:
@@ -243,17 +240,11 @@ def add_genesis_block(
     if has_field(hardfork.Header, "base_fee_per_gas"):
         fields["base_fee_per_gas"] = Uint(10**9)
 
-    if has_field(hardfork.Header, "withdrawals_root"):
-        fields["withdrawals_root"] = hardfork.root(hardfork.Trie(False, None))
-
     if has_field(hardfork.Header, "blob_gas_used"):
         fields["blob_gas_used"] = U64(0)
 
     if has_field(hardfork.Header, "excess_blob_gas"):
         fields["excess_blob_gas"] = U64(0)
-
-    if has_field(hardfork.Header, "parent_beacon_block_root"):
-        fields["parent_beacon_block_root"] = Hash32(b"\0" * 32)
 
     genesis_header = hardfork.Header(**fields)
 
@@ -262,9 +253,6 @@ def add_genesis_block(
         "transactions": (),
         "ommers": (),
     }
-
-    if has_field(hardfork.Block, "withdrawals"):
-        block_fields["withdrawals"] = ()
 
     genesis_block = hardfork.Block(**block_fields)
 

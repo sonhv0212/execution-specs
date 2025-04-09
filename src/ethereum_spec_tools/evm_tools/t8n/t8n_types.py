@@ -1,6 +1,7 @@
 """
 Define the types used by the t8n tool.
 """
+
 import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple
@@ -69,9 +70,7 @@ class Alloc:
             if address in self.state._storage_tries:
                 account_data["storage"] = {
                     "0x" + k.hex(): hex(v)
-                    for k, v in self.state._storage_tries[
-                        address
-                    ]._data.items()
+                    for k, v in self.state._storage_tries[address]._data.items()
                 }
 
             data["0x" + address.hex()] = account_data
@@ -130,12 +129,11 @@ class Txs:
                     yield idx, self.parse_json_tx(raw_tx)
             except UnsupportedTx as e:
                 self.t8n.logger.warning(
-                    f"Unsupported transaction type {idx}: "
-                    f"{e.error_message}"
+                    f"Unsupported transaction type {idx}: {e.error_message}"
                 )
-                self.rejected_txs[
-                    idx
-                ] = f"Unsupported transaction type: {e.error_message}"
+                self.rejected_txs[idx] = (
+                    f"Unsupported transaction type: {e.error_message}"
+                )
                 self.all_txs.append(e.encoded_params)
             except Exception as e:
                 msg = f"Failed to parse transaction {idx}: {str(e)}"
@@ -258,9 +256,7 @@ class Txs:
         if isinstance(tx_decoded, Transaction):
             if t8n.fork.is_after_fork("ethereum.spurious_dragon"):
                 if protected:
-                    signing_hash = t8n.fork.signing_hash_155(
-                        tx_decoded, U64(1)
-                    )
+                    signing_hash = t8n.fork.signing_hash_155(tx_decoded, U64(1))
                     v_addend = U256(37)  # Assuming chain_id = 1
                 else:
                     signing_hash = t8n.fork.signing_hash_pre155(tx_decoded)
@@ -298,7 +294,6 @@ class Result:
     state_root: Any = None
     tx_root: Any = None
     receipt_root: Any = None
-    withdrawals_root: Any = None
     logs_hash: Any = None
     bloom: Any = None
     receipts: Any = None
@@ -314,8 +309,6 @@ class Result:
         data["stateRoot"] = "0x" + self.state_root.hex()
         data["txRoot"] = "0x" + self.tx_root.hex()
         data["receiptsRoot"] = "0x" + self.receipt_root.hex()
-        if self.withdrawals_root:
-            data["withdrawalsRoot"] = "0x" + self.withdrawals_root.hex()
         data["logsHash"] = "0x" + self.logs_hash.hex()
         data["logsBloom"] = "0x" + self.bloom.hex()
         data["gasUsed"] = hex(self.gas_used)
@@ -336,8 +329,7 @@ class Result:
             data["blobGasUsed"] = hex(self.blob_gas_used)
 
         data["rejected"] = [
-            {"index": idx, "error": error}
-            for idx, error in self.rejected.items()
+            {"index": idx, "error": error} for idx, error in self.rejected.items()
         ]
 
         data["receipts"] = [

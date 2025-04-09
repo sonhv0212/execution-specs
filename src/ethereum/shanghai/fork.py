@@ -27,7 +27,7 @@ from ethereum.exceptions import (
 )
 
 from . import vm
-from .blocks import Block, Header, Log, Receipt, Withdrawal
+from .blocks import Block, Header, Log, Receipt
 from .bloom import logs_bloom
 from .fork_types import Address, Bloom, Root
 from .state import (
@@ -36,7 +36,6 @@ from .state import (
     destroy_account,
     get_account,
     increment_nonce,
-    process_withdrawal,
     set_account_balance,
     state_root,
 )
@@ -172,7 +171,6 @@ def state_transition(chain: BlockChain, block: Block) -> None:
         block.header.prev_randao,
         block.transactions,
         chain.chain_id,
-        block.withdrawals,
     )
     if apply_body_output.block_gas_used != block.header.gas_used:
         raise InvalidBlock(
@@ -185,8 +183,6 @@ def state_transition(chain: BlockChain, block: Block) -> None:
     if apply_body_output.receipt_root != block.header.receipt_root:
         raise InvalidBlock
     if apply_body_output.block_logs_bloom != block.header.bloom:
-        raise InvalidBlock
-    if apply_body_output.withdrawals_root != block.header.withdrawals_root:
         raise InvalidBlock
 
     chain.blocks.append(block)
@@ -238,22 +234,16 @@ def calculate_base_fee_per_gas(
             Uint(1),
         )
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas + base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
         target_fee_gas_delta = parent_fee_gas_delta // parent_gas_target
 
-        base_fee_per_gas_delta = (
-            target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
-        )
+        base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas - base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
 
     return Uint(expected_base_fee_per_gas)
 
@@ -374,7 +364,7 @@ def make_receipt(
     tx :
         The executed transaction.
     error :
-        Error in the top level frame of the transaction, if any.
+        The error from the execution if any.
     cumulative_gas_used :
         The total gas used so far in the block after the transaction was
         executed.
@@ -419,8 +409,6 @@ class ApplyBodyOutput:
         block.
     state_root : `ethereum.fork_types.Root`
         State root after all transactions have been executed.
-    withdrawals_root : `ethereum.fork_types.Root`
-        Trie root of all the withdrawals in the block.
     """
 
     block_gas_used: Uint
@@ -428,7 +416,6 @@ class ApplyBodyOutput:
     receipt_root: Root
     block_logs_bloom: Bloom
     state_root: Root
-    withdrawals_root: Root
 
 
 def apply_body(
@@ -442,7 +429,6 @@ def apply_body(
     prev_randao: Bytes32,
     transactions: Tuple[Union[LegacyTransaction, Bytes], ...],
     chain_id: U64,
-    withdrawals: Tuple[Withdrawal, ...],
 ) -> ApplyBodyOutput:
     """
     Executes a block.
@@ -480,8 +466,6 @@ def apply_body(
         uncles.)
     chain_id :
         ID of the executing chain.
-    withdrawals :
-        Withdrawals to be processed in the current block.
 
     Returns
     -------
@@ -489,21 +473,16 @@ def apply_body(
         Output of applying the block body to the state.
     """
     gas_available = block_gas_limit
-    transactions_trie: Trie[
-        Bytes, Optional[Union[Bytes, LegacyTransaction]]
-    ] = Trie(secured=False, default=None)
-    receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
+    transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
         secured=False, default=None
     )
-    withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
+    receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
         secured=False, default=None
     )
     block_logs: Tuple[Log, ...] = ()
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
-        trie_set(
-            transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx)
-        )
+        trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
 
         sender_address, effective_gas_price = check_transaction(
             tx, base_fee_per_gas, gas_available, chain_id
@@ -528,9 +507,7 @@ def apply_body(
         gas_used, logs, error = process_transaction(env, tx)
         gas_available -= gas_used
 
-        receipt = make_receipt(
-            tx, error, (block_gas_limit - gas_available), logs
-        )
+        receipt = make_receipt(tx, error, (block_gas_limit - gas_available), logs)
 
         trie_set(
             receipts_trie,
@@ -544,21 +521,12 @@ def apply_body(
 
     block_logs_bloom = logs_bloom(block_logs)
 
-    for i, wd in enumerate(withdrawals):
-        trie_set(withdrawals_trie, rlp.encode(Uint(i)), rlp.encode(wd))
-
-        process_withdrawal(state, wd)
-
-        if account_exists_and_is_empty(state, wd.address):
-            destroy_account(state, wd.address)
-
     return ApplyBodyOutput(
         block_gas_used,
         root(transactions_trie),
         root(receipts_trie),
         block_logs_bloom,
         state_root(state),
-        root(withdrawals_trie),
     )
 
 
@@ -613,9 +581,7 @@ def process_transaction(
     gas = tx.gas - calculate_intrinsic_cost(tx)
     increment_nonce(env.state, sender)
 
-    sender_balance_after_gas_fee = (
-        Uint(sender_account.balance) - effective_gas_fee
-    )
+    sender_balance_after_gas_fee = Uint(sender_account.balance) - effective_gas_fee
     set_account_balance(env.state, sender, U256(sender_balance_after_gas_fee))
 
     preaccessed_addresses = set()
@@ -646,16 +612,14 @@ def process_transaction(
 
     # For non-1559 transactions env.gas_price == tx.gas_price
     priority_fee_per_gas = env.gas_price - env.base_fee_per_gas
-    transaction_fee = (
-        tx.gas - output.gas_left - gas_refund
-    ) * priority_fee_per_gas
+    transaction_fee = (tx.gas - output.gas_left - gas_refund) * priority_fee_per_gas
 
     total_gas_used = gas_used - gas_refund
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = get_account(env.state, sender).balance + U256(
+        gas_refund_amount
+    )
     set_account_balance(env.state, sender, sender_balance_after_refund)
 
     # transfer miner fees
@@ -663,9 +627,7 @@ def process_transaction(
         env.state, env.coinbase
     ).balance + U256(transaction_fee)
     if coinbase_balance_after_mining_fee != 0:
-        set_account_balance(
-            env.state, env.coinbase, coinbase_balance_after_mining_fee
-        )
+        set_account_balance(env.state, env.coinbase, coinbase_balance_after_mining_fee)
     elif account_exists_and_is_empty(env.state, env.coinbase):
         destroy_account(env.state, env.coinbase)
 

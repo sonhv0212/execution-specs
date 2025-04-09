@@ -168,11 +168,6 @@ class ForkLoad:
         return self._module("transactions").BlobTransaction
 
     @property
-    def Withdrawal(self) -> Any:
-        """Withdrawal class of the fork"""
-        return self._module("blocks").Withdrawal
-
-    @property
     def encode_transaction(self) -> Any:
         """encode_transaction function of the fork"""
         return self._module("transactions").encode_transaction
@@ -226,11 +221,6 @@ class ForkLoad:
     def destroy_account(self) -> Any:
         """destroy_account function of the fork"""
         return self._module("state").destroy_account
-
-    @property
-    def process_withdrawal(self) -> Any:
-        """process_withdrawal function of the fork"""
-        return self._module("state").process_withdrawal
 
     @property
     def state_root(self) -> Any:

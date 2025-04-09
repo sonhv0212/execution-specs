@@ -40,7 +40,7 @@ from ethereum.crypto.hash import keccak256
 from ethereum.paris import trie as previous_trie
 from ethereum.utils.hexadecimal import hex_to_bytes
 
-from .blocks import Receipt, Withdrawal
+from .blocks import Receipt
 from .fork_types import Account, Address, Root, encode_account
 from .transactions import LegacyTransaction
 
@@ -58,14 +58,10 @@ from .transactions import LegacyTransaction
 #
 # which is the sha3Uncles hash in block header with no uncles
 EMPTY_TRIE_ROOT = Root(
-    hex_to_bytes(
-        "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-    )
+    hex_to_bytes("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 )
 
-Node = Union[
-    Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None
-]
+Node = Union[Account, Bytes, LegacyTransaction, Receipt, Uint, U256, None]
 K = TypeVar("K", bound=Bytes)
 V = TypeVar(
     "V",
@@ -74,7 +70,6 @@ V = TypeVar(
     Bytes,
     Optional[Union[LegacyTransaction, Bytes]],
     Optional[Union[Receipt, Bytes]],
-    Optional[Union[Withdrawal, Bytes]],
     Uint,
     U256,
 )
@@ -183,7 +178,7 @@ def encode_node(node: Node, storage_root: Optional[Bytes] = None) -> Bytes:
     if isinstance(node, Account):
         assert storage_root is not None
         return encode_account(node, storage_root)
-    elif isinstance(node, (LegacyTransaction, Receipt, Withdrawal, U256)):
+    elif isinstance(node, (LegacyTransaction, Receipt, U256)):
         return rlp.encode(node)
     elif isinstance(node, Bytes):
         return node
@@ -417,9 +412,7 @@ def root(
         return Root(root_node)
 
 
-def patricialize(
-    obj: Mapping[Bytes, Bytes], level: Uint
-) -> Optional[InternalNode]:
+def patricialize(obj: Mapping[Bytes, Bytes], level: Uint) -> Optional[InternalNode]:
     """
     Structural composition function.
 
@@ -453,9 +446,7 @@ def patricialize(
     substring = arbitrary_key[level:]
     prefix_length = len(substring)
     for key in obj:
-        prefix_length = min(
-            prefix_length, common_prefix_length(substring, key[level:])
-        )
+        prefix_length = min(prefix_length, common_prefix_length(substring, key[level:]))
 
         # finished searching, found another key at the current level
         if prefix_length == 0:
@@ -466,9 +457,7 @@ def patricialize(
         prefix = arbitrary_key[int(level) : int(level) + prefix_length]
         return ExtensionNode(
             prefix,
-            encode_internal_node(
-                patricialize(obj, level + Uint(prefix_length))
-            ),
+            encode_internal_node(patricialize(obj, level + Uint(prefix_length))),
         )
 
     branches: List[MutableMapping[Bytes, Bytes]] = []

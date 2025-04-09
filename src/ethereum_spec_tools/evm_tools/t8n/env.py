@@ -1,6 +1,7 @@
 """
 Define t8n Env class
 """
+
 import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -36,7 +37,6 @@ class Env:
     block_gas_limit: Uint
     block_number: Uint
     block_timestamp: U256
-    withdrawals: Any
     block_difficulty: Optional[Uint]
     prev_randao: Optional[Bytes32]
     parent_difficulty: Optional[Uint]
@@ -48,7 +48,6 @@ class Env:
     block_hashes: Optional[List[Any]]
     parent_ommers_hash: Optional[Hash32]
     ommers: Any
-    parent_beacon_block_root: Optional[Hash32]
     parent_excess_blob_gas: Optional[U64]
     parent_blob_gas_used: Optional[U64]
     excess_blob_gas: Optional[U64]
@@ -71,15 +70,8 @@ class Env:
         self.read_randao(data, t8n)
         self.read_block_hashes(data)
         self.read_ommers(data, t8n)
-        self.read_withdrawals(data, t8n)
 
         if t8n.fork.is_after_fork("ethereum.cancun"):
-            parent_beacon_block_root_hex = data.get("parentBeaconBlockRoot")
-            self.parent_beacon_block_root = (
-                Bytes32(hex_to_bytes(parent_beacon_block_root_hex))
-                if parent_beacon_block_root_hex is not None
-                else None
-            )
             self.read_excess_blob_gas(data, t8n)
 
     def read_excess_blob_gas(self, data: Any, t8n: "T8N") -> None:
@@ -95,9 +87,7 @@ class Env:
             return
 
         if "currentExcessBlobGas" in data:
-            self.excess_blob_gas = parse_hex_or_int(
-                data["currentExcessBlobGas"], U64
-            )
+            self.excess_blob_gas = parse_hex_or_int(data["currentExcessBlobGas"], U64)
             return
 
         if "parentExcessBlobGas" in data:
@@ -106,13 +96,9 @@ class Env:
             )
 
         if "parentBlobGasUsed" in data:
-            self.parent_blob_gas_used = parse_hex_or_int(
-                data["parentBlobGasUsed"], U64
-            )
+            self.parent_blob_gas_used = parse_hex_or_int(data["parentBlobGasUsed"], U64)
 
-        excess_blob_gas = (
-            self.parent_excess_blob_gas + self.parent_blob_gas_used
-        )
+        excess_blob_gas = self.parent_excess_blob_gas + self.parent_blob_gas_used
 
         target_blob_gas_per_block = t8n.fork.TARGET_BLOB_GAS_PER_BLOCK
 
@@ -132,16 +118,10 @@ class Env:
 
         if t8n.fork.is_after_fork("ethereum.london"):
             if "currentBaseFee" in data:
-                self.base_fee_per_gas = parse_hex_or_int(
-                    data["currentBaseFee"], Uint
-                )
+                self.base_fee_per_gas = parse_hex_or_int(data["currentBaseFee"], Uint)
             else:
-                self.parent_gas_used = parse_hex_or_int(
-                    data["parentGasUsed"], Uint
-                )
-                self.parent_gas_limit = parse_hex_or_int(
-                    data["parentGasLimit"], Uint
-                )
+                self.parent_gas_used = parse_hex_or_int(data["parentGasUsed"], Uint)
+                self.parent_gas_limit = parse_hex_or_int(data["parentGasLimit"], Uint)
                 self.parent_base_fee_per_gas = parse_hex_or_int(
                     data["parentBaseFee"], Uint
                 )
@@ -152,9 +132,7 @@ class Env:
                     self.parent_base_fee_per_gas,
                 ]
 
-                self.base_fee_per_gas = t8n.fork.calculate_base_fee_per_gas(
-                    *parameters
-                )
+                self.base_fee_per_gas = t8n.fork.calculate_base_fee_per_gas(*parameters)
 
     def read_randao(self, data: Any, t8n: "T8N") -> None:
         """
@@ -177,16 +155,6 @@ class Env:
                 left_pad_zero_bytes(hex_to_bytes(current_random), 32)
             )
 
-    def read_withdrawals(self, data: Any, t8n: "T8N") -> None:
-        """
-        Read the withdrawals from the data.
-        """
-        self.withdrawals = None
-        if t8n.fork.is_after_fork("ethereum.shanghai"):
-            self.withdrawals = tuple(
-                t8n.json_to_withdrawals(wd) for wd in data["withdrawals"]
-            )
-
     def read_block_difficulty(self, data: Any, t8n: "T8N") -> None:
         """
         Read the block difficulty from the data.
@@ -200,16 +168,10 @@ class Env:
         if t8n.fork.is_after_fork("ethereum.paris"):
             return
         elif "currentDifficulty" in data:
-            self.block_difficulty = parse_hex_or_int(
-                data["currentDifficulty"], Uint
-            )
+            self.block_difficulty = parse_hex_or_int(data["currentDifficulty"], Uint)
         else:
-            self.parent_timestamp = parse_hex_or_int(
-                data["parentTimestamp"], U256
-            )
-            self.parent_difficulty = parse_hex_or_int(
-                data["parentDifficulty"], Uint
-            )
+            self.parent_timestamp = parse_hex_or_int(data["parentTimestamp"], U256)
+            self.parent_difficulty = parse_hex_or_int(data["parentDifficulty"], Uint)
             args: List[object] = [
                 self.block_number,
                 self.block_timestamp,
@@ -222,9 +184,7 @@ class Env:
                     self.parent_ommers_hash = Hash32(
                         hex_to_bytes(data["parentUncleHash"])
                     )
-                    parent_has_ommers = (
-                        self.parent_ommers_hash != EMPTY_OMMER_HASH
-                    )
+                    parent_has_ommers = self.parent_ommers_hash != EMPTY_OMMER_HASH
                     args.append(parent_has_ommers)
                 else:
                     args.append(False)
@@ -238,9 +198,7 @@ class Env:
         block_hashes: List[Any] = []
         # Store a maximum of 256 block hashes.
         max_blockhash_count = min(Uint(256), self.block_number)
-        for number in range(
-            self.block_number - max_blockhash_count, self.block_number
-        ):
+        for number in range(self.block_number - max_blockhash_count, self.block_number):
             if "blockHashes" in data and str(number) in data["blockHashes"]:
                 block_hashes.append(
                     Hash32(hex_to_bytes(data["blockHashes"][str(number)]))

@@ -1,6 +1,7 @@
 """
 Define the types used by the b11r tool.
 """
+
 import json
 from typing import Any, List, Optional, Tuple
 
@@ -13,9 +14,7 @@ from ethereum.utils.hexadecimal import hex_to_bytes, hex_to_bytes8
 
 from ..utils import parse_hex_or_int
 
-DEFAULT_TRIE_ROOT = (
-    "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-)
+DEFAULT_TRIE_ROOT = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
 DEFAULT_COINBASE = "0x0000000000000000000000000000000000000000"
 
 
@@ -26,7 +25,6 @@ class Body:
 
     transactions: rlp.Extended
     ommers: rlp.Extended
-    withdrawals: Optional[List[Tuple[U64, U64, Bytes20, Uint]]]
 
     def __init__(self, options: Any, stdin: Any = None):
         # Parse transactions
@@ -61,31 +59,6 @@ class Body:
             assert not isinstance(decoded_ommer, bytes)
             self.ommers.append(decoded_ommer[0])  # ommer[0] is the header
 
-        # Parse withdrawals
-        if options.input_withdrawals is None:
-            self.withdrawals = None
-            return
-
-        if options.input_withdrawals == "stdin":
-            assert stdin is not None
-            # The tf tool does not pass empty list when there
-            # are no withdrawals.
-            withdrawals_data = stdin.get("withdrawals", [])
-        else:
-            with open(options.input_withdrawals) as f:
-                withdrawals_data = json.load(f)
-
-        self.withdrawals = []
-        for wd in withdrawals_data:
-            self.withdrawals.append(
-                (
-                    parse_hex_or_int(wd["index"], U64),
-                    parse_hex_or_int(wd["validatorIndex"], U64),
-                    Bytes20(hex_to_bytes(wd["address"])),
-                    parse_hex_or_int(wd["amount"], Uint),
-                )
-            )
-
 
 class Header:
     """
@@ -108,7 +81,6 @@ class Header:
     mix_digest: Bytes32
     nonce: Bytes8
     base_fee_per_gas: Optional[Uint]
-    withdrawals_root: Optional[Hash32]
 
     def __init__(self, options: Any, body: Body, stdin: Any = None):
         if options.input_header == "stdin":
@@ -124,9 +96,7 @@ class Header:
         except KeyError:
             self.ommers_hash = keccak256(rlp.encode(body.ommers))
 
-        self.coinbase = Bytes20(
-            hex_to_bytes(data.get("miner", DEFAULT_COINBASE))
-        )
+        self.coinbase = Bytes20(hex_to_bytes(data.get("miner", DEFAULT_COINBASE)))
         self.state_root = Hash32(hex_to_bytes(data["stateRoot"]))
         self.transactions_root = Hash32(
             hex_to_bytes(
@@ -155,18 +125,6 @@ class Header:
         self.nonce = hex_to_bytes8(data.get("nonce", "0x0000000000000000"))
 
         try:
-            self.base_fee_per_gas = parse_hex_or_int(
-                data["baseFeePerGas"], Uint
-            )
+            self.base_fee_per_gas = parse_hex_or_int(data["baseFeePerGas"], Uint)
         except KeyError:
             self.base_fee_per_gas = None
-
-        try:
-            self.withdrawals_root = Hash32(
-                hex_to_bytes(data["withdrawalsRoot"])
-            )
-            # Cannot have withdrawal root but no base fee
-            if self.base_fee_per_gas is None:
-                self.base_fee_per_gas = Uint(0)
-        except KeyError:
-            self.withdrawals_root = None

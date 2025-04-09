@@ -79,17 +79,6 @@ class Load(BaseLoad):
                 )
         return state
 
-    def json_to_withdrawals(self, raw: Any) -> Any:
-        """Converts json withdrawal data to a withdrawal object"""
-        parameters = [
-            hex_to_u64(raw.get("index")),
-            hex_to_u64(raw.get("validatorIndex")),
-            self.fork.hex_to_address(raw.get("address")),
-            hex_to_u256(raw.get("amount")),
-        ]
-
-        return self.fork.Withdrawal(*parameters)
-
     def json_to_block(
         self,
         json_block: Any,
@@ -104,8 +93,7 @@ class Load(BaseLoad):
 
         header = self.json_to_header(json_block["blockHeader"])
         transactions = tuple(
-            TransactionLoad(tx, self.fork).read()
-            for tx in json_block["transactions"]
+            TransactionLoad(tx, self.fork).read() for tx in json_block["transactions"]
         )
         uncles = tuple(
             self.json_to_header(uncle) for uncle in json_block["uncleHeaders"]
@@ -117,17 +105,8 @@ class Load(BaseLoad):
             uncles,
         ]
 
-        if "withdrawals" in json_block:
-            withdrawals = tuple(
-                self.json_to_withdrawals(wd)
-                for wd in json_block["withdrawals"]
-            )
-            parameters.append(withdrawals)
-
         block = self.fork.Block(*parameters)
-        block_header_hash = Hash32(
-            hex_to_bytes(json_block["blockHeader"]["hash"])
-        )
+        block_header_hash = Hash32(hex_to_bytes(json_block["blockHeader"]["hash"]))
         block_rlp = hex_to_bytes(json_block["rlp"])
 
         return block, block_header_hash, block_rlp
@@ -142,12 +121,8 @@ class Load(BaseLoad):
             self.fork.hex_to_root(
                 raw.get("transactionsTrie") or raw.get("transactionsRoot")
             ),
-            self.fork.hex_to_root(
-                raw.get("receiptTrie") or raw.get("receiptsRoot")
-            ),
-            self.fork.Bloom(
-                hex_to_bytes(raw.get("bloom") or raw.get("logsBloom"))
-            ),
+            self.fork.hex_to_root(raw.get("receiptTrie") or raw.get("receiptsRoot")),
+            self.fork.Bloom(hex_to_bytes(raw.get("bloom") or raw.get("logsBloom"))),
             hex_to_uint(raw.get("difficulty")),
             hex_to_uint(raw.get("number")),
             hex_to_uint(raw.get("gasLimit")),
@@ -162,20 +137,10 @@ class Load(BaseLoad):
             base_fee_per_gas = hex_to_uint(raw.get("baseFeePerGas"))
             parameters.append(base_fee_per_gas)
 
-        if "withdrawalsRoot" in raw:
-            withdrawals_root = self.fork.hex_to_root(
-                raw.get("withdrawalsRoot")
-            )
-            parameters.append(withdrawals_root)
-
         if "excessBlobGas" in raw:
             blob_gas_used = hex_to_u64(raw.get("blobGasUsed"))
             parameters.append(blob_gas_used)
             excess_blob_gas = hex_to_u64(raw.get("excessBlobGas"))
             parameters.append(excess_blob_gas)
-            parent_beacon_block_root = self.fork.hex_to_root(
-                raw.get("parentBeaconBlockRoot")
-            )
-            parameters.append(parent_beacon_block_root)
 
         return self.fork.Header(*parameters)

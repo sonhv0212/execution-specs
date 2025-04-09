@@ -4,7 +4,7 @@ from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 
 from ethereum.crypto.hash import keccak256
-from ethereum.shanghai.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.shanghai.blocks import Block, Header, Log, Receipt
 from ethereum.shanghai.transactions import (
     AccessListTransaction,
     FeeMarketTransaction,
@@ -81,8 +81,6 @@ transaction_1559 = FeeMarketTransaction(
     U256(6),
 )
 
-withdrawal = Withdrawal(U64(0), U64(1), address1, U256(2))
-
 
 header = Header(
     parent_hash=hash1,
@@ -101,7 +99,6 @@ header = Header(
     prev_randao=Bytes32(b"1234567890abcdef1234567890abcdef"),
     nonce=Bytes8(b"12345678"),
     base_fee_per_gas=Uint(6),
-    withdrawals_root=hash6,
 )
 
 block = Block(
@@ -112,7 +109,6 @@ block = Block(
         encode_transaction(transaction_1559),
     ),
     ommers=(),
-    withdrawals=(withdrawal,),
 )
 
 log1 = Log(
@@ -146,7 +142,6 @@ receipt = Receipt(
         log1,
         log2,
         receipt,
-        withdrawal,
     ],
 )
 def test_shanghai_rlp(rlp_object: rlp.Extended) -> None:
