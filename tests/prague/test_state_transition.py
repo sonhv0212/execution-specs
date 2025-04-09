@@ -15,14 +15,10 @@ fetch_prague_tests = partial(fetch_state_test_files, network="Prague")
 
 FIXTURES_LOADER = Load("Prague", "prague")
 
-run_prague_blockchain_st_tests = partial(
-    run_blockchain_st_test, load=FIXTURES_LOADER
-)
+run_prague_blockchain_st_tests = partial(run_blockchain_st_test, load=FIXTURES_LOADER)
 
 ETHEREUM_TESTS_PATH = TEST_FIXTURES["ethereum_tests"]["fixture_path"]
-ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"][
-    "fixture_path"
-]
+ETHEREUM_SPEC_TESTS_PATH = TEST_FIXTURES["execution_spec_tests"]["fixture_path"]
 
 
 # Run state tests
@@ -92,10 +88,6 @@ fetch_state_tests = partial(
 
 # Run temporary test fixtures for Prague
 test_dirs = (
-    "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip7002_el_triggerable_withdrawals",
-    "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip6110_deposits",
-    "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip7251_consolidations",
-    "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip7685_general_purpose_el_requests",
     "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip2537_bls_12_381_precompiles",
     "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip2935_historical_block_hashes_from_state",
     "tests/fixtures/latest_fork_tests/blockchain_tests/prague/eip7702_set_code_tx",

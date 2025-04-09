@@ -68,16 +68,6 @@ class ForkLoad:
         return self._module("fork").HISTORY_STORAGE_ADDRESS
 
     @property
-    def WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS(self) -> Any:
-        """WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS of the given fork."""
-        return self._module("fork").WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS
-
-    @property
-    def CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS(self) -> Any:
-        """CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS of the given fork."""
-        return self._module("fork").CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS
-
-    @property
     def HISTORY_SERVE_WINDOW(self) -> Any:
         """HISTORY_SERVE_WINDOW of the given fork."""
         return self._module("fork").HISTORY_SERVE_WINDOW
@@ -178,16 +168,6 @@ class ForkLoad:
         return self._module("blocks").Block
 
     @property
-    def parse_deposit_requests_from_receipt(self) -> Any:
-        """parse_deposit_requests_from_receipt function of the fork"""
-        return self._module("requests").parse_deposit_requests_from_receipt
-
-    @property
-    def compute_requests_hash(self) -> Any:
-        """compute_requests_hash function of the fork"""
-        return self._module("requests").compute_requests_hash
-
-    @property
     def Bloom(self) -> Any:
         """Bloom class of the fork"""
         return self._module("fork_types").Bloom
@@ -231,11 +211,6 @@ class ForkLoad:
     def SetCodeTransaction(self) -> Any:
         """Set code transaction class of the fork"""
         return self._module("transactions").SetCodeTransaction
-
-    @property
-    def Withdrawal(self) -> Any:
-        """Withdrawal class of the fork"""
-        return self._module("blocks").Withdrawal
 
     @property
     def encode_transaction(self) -> Any:
@@ -291,11 +266,6 @@ class ForkLoad:
     def destroy_account(self) -> Any:
         """destroy_account function of the fork"""
         return self._module("state").destroy_account
-
-    @property
-    def process_withdrawal(self) -> Any:
-        """process_withdrawal function of the fork"""
-        return self._module("state").process_withdrawal
 
     @property
     def state_root(self) -> Any:

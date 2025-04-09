@@ -23,16 +23,9 @@ from ethereum.crypto.hash import Hash32, keccak256
 from ethereum.exceptions import InvalidBlock, InvalidSenderError
 
 from . import vm
-from .blocks import Block, Header, Log, Receipt, Withdrawal, encode_receipt
+from .blocks import Block, Header, Log, Receipt, encode_receipt
 from .bloom import logs_bloom
 from .fork_types import Address, Authorization, Bloom, Root, VersionedHash
-from .requests import (
-    CONSOLIDATION_REQUEST_TYPE,
-    DEPOSIT_REQUEST_TYPE,
-    WITHDRAWAL_REQUEST_TYPE,
-    compute_requests_hash,
-    parse_deposit_requests_from_receipt,
-)
 from .state import (
     State,
     TransientStorage,
@@ -41,7 +34,6 @@ from .state import (
     destroy_touched_empty_accounts,
     get_account,
     increment_nonce,
-    process_withdrawal,
     set_account_balance,
     state_root,
 )
@@ -76,22 +68,11 @@ GAS_LIMIT_ADJUSTMENT_FACTOR = Uint(1024)
 GAS_LIMIT_MINIMUM = Uint(5000)
 EMPTY_OMMER_HASH = keccak256(rlp.encode([]))
 SYSTEM_ADDRESS = hex_to_address("0xfffffffffffffffffffffffffffffffffffffffe")
-BEACON_ROOTS_ADDRESS = hex_to_address(
-    "0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02"
-)
 SYSTEM_TRANSACTION_GAS = Uint(30000000)
 MAX_BLOB_GAS_PER_BLOCK = Uint(1179648)
 VERSIONED_HASH_VERSION_KZG = b"\x01"
 
-WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS = hex_to_address(
-    "0x00000961Ef480Eb55e80D19ad83579A64c007002"
-)
-CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS = hex_to_address(
-    "0x0000BBdDc7CE488642fb579F8B00f3a590007251"
-)
-HISTORY_STORAGE_ADDRESS = hex_to_address(
-    "0x0000F90827F1C53a10cb7A02335B175320002935"
-)
+HISTORY_STORAGE_ADDRESS = hex_to_address("0x0000F90827F1C53a10cb7A02335B175320002935")
 HISTORY_SERVE_WINDOW = 8192
 
 
@@ -209,8 +190,6 @@ def state_transition(chain: BlockChain, block: Block) -> None:
         block.header.prev_randao,
         block.transactions,
         chain.chain_id,
-        block.withdrawals,
-        block.header.parent_beacon_block_root,
         excess_blob_gas,
     )
     if apply_body_output.block_gas_used != block.header.gas_used:
@@ -225,11 +204,7 @@ def state_transition(chain: BlockChain, block: Block) -> None:
         raise InvalidBlock
     if apply_body_output.block_logs_bloom != block.header.bloom:
         raise InvalidBlock
-    if apply_body_output.withdrawals_root != block.header.withdrawals_root:
-        raise InvalidBlock
     if apply_body_output.blob_gas_used != block.header.blob_gas_used:
-        raise InvalidBlock
-    if apply_body_output.requests_hash != block.header.requests_hash:
         raise InvalidBlock
 
     chain.blocks.append(block)
@@ -281,22 +256,16 @@ def calculate_base_fee_per_gas(
             Uint(1),
         )
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas + base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
         target_fee_gas_delta = parent_fee_gas_delta // parent_gas_target
 
-        base_fee_per_gas_delta = (
-            target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
-        )
+        base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas - base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
 
     return Uint(expected_base_fee_per_gas)
 
@@ -393,9 +362,7 @@ def check_transaction(
     sender_address = recover_sender(chain_id, tx)
     sender_account = get_account(state, sender_address)
 
-    if isinstance(
-        tx, (FeeMarketTransaction, BlobTransaction, SetCodeTransaction)
-    ):
+    if isinstance(tx, (FeeMarketTransaction, BlobTransaction, SetCodeTransaction)):
         if tx.max_fee_per_gas < tx.max_priority_fee_per_gas:
             raise InvalidBlock
         if tx.max_fee_per_gas < base_fee_per_gas:
@@ -424,9 +391,7 @@ def check_transaction(
         if Uint(tx.max_fee_per_blob_gas) < blob_gas_price:
             raise InvalidBlock
 
-        max_gas_fee += calculate_total_blob_gas(tx) * Uint(
-            tx.max_fee_per_blob_gas
-        )
+        max_gas_fee += calculate_total_blob_gas(tx) * Uint(tx.max_fee_per_blob_gas)
         blob_versioned_hashes = tx.blob_versioned_hashes
     else:
         blob_versioned_hashes = ()
@@ -505,12 +470,8 @@ class ApplyBodyOutput:
         block.
     state_root : `ethereum.fork_types.Root`
         State root after all transactions have been executed.
-    withdrawals_root : `ethereum.fork_types.Root`
-        Trie root of all the withdrawals in the block.
     blob_gas_used : `ethereum.base_types.Uint`
         Total blob gas used in the block.
-    requests_hash : `Bytes`
-        Hash of all the requests in the block.
     """
 
     block_gas_used: Uint
@@ -518,9 +479,7 @@ class ApplyBodyOutput:
     receipt_root: Root
     block_logs_bloom: Bloom
     state_root: Root
-    withdrawals_root: Root
     blob_gas_used: Uint
-    requests_hash: Bytes
 
 
 def process_system_transaction(
@@ -636,8 +595,6 @@ def apply_body(
     prev_randao: Bytes32,
     transactions: Tuple[Union[LegacyTransaction, Bytes], ...],
     chain_id: U64,
-    withdrawals: Tuple[Withdrawal, ...],
-    parent_beacon_block_root: Root,
     excess_blob_gas: U64,
 ) -> ApplyBodyOutput:
     """
@@ -676,10 +633,6 @@ def apply_body(
         uncles.)
     chain_id :
         ID of the executing chain.
-    withdrawals :
-        Withdrawals to be processed in the current block.
-    parent_beacon_block_root :
-        The root of the beacon block from the parent block.
     excess_blob_gas :
         Excess blob gas calculated from the previous block.
 
@@ -690,32 +643,13 @@ def apply_body(
     """
     blob_gas_used = Uint(0)
     gas_available = block_gas_limit
-    transactions_trie: Trie[
-        Bytes, Optional[Union[Bytes, LegacyTransaction]]
-    ] = Trie(secured=False, default=None)
+    transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
+        secured=False, default=None
+    )
     receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
         secured=False, default=None
     )
-    withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = Trie(
-        secured=False, default=None
-    )
     block_logs: Tuple[Log, ...] = ()
-    deposit_requests: Bytes = b""
-
-    process_system_transaction(
-        BEACON_ROOTS_ADDRESS,
-        parent_beacon_block_root,
-        block_hashes,
-        coinbase,
-        block_number,
-        base_fee_per_gas,
-        block_gas_limit,
-        block_time,
-        prev_randao,
-        state,
-        chain_id,
-        excess_blob_gas,
-    )
 
     process_system_transaction(
         HISTORY_STORAGE_ADDRESS,
@@ -733,9 +667,7 @@ def apply_body(
     )
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
-        trie_set(
-            transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx)
-        )
+        trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
 
         (
             sender_address,
@@ -772,17 +704,13 @@ def apply_body(
         gas_used, logs, error = process_transaction(env, tx)
         gas_available -= gas_used
 
-        receipt = make_receipt(
-            tx, error, (block_gas_limit - gas_available), logs
-        )
+        receipt = make_receipt(tx, error, (block_gas_limit - gas_available), logs)
 
         trie_set(
             receipts_trie,
             rlp.encode(Uint(i)),
             receipt,
         )
-
-        deposit_requests += parse_deposit_requests_from_receipt(receipt)
 
         block_logs += logs
         blob_gas_used += calculate_total_blob_gas(tx)
@@ -792,135 +720,14 @@ def apply_body(
 
     block_logs_bloom = logs_bloom(block_logs)
 
-    for i, wd in enumerate(withdrawals):
-        trie_set(withdrawals_trie, rlp.encode(Uint(i)), rlp.encode(wd))
-
-        process_withdrawal(state, wd)
-
-        if account_exists_and_is_empty(state, wd.address):
-            destroy_account(state, wd.address)
-
-    requests_from_execution = process_general_purpose_requests(
-        deposit_requests,
-        state,
-        block_hashes,
-        coinbase,
-        block_number,
-        base_fee_per_gas,
-        block_gas_limit,
-        block_time,
-        prev_randao,
-        chain_id,
-        excess_blob_gas,
-    )
-
-    requests_hash = compute_requests_hash(requests_from_execution)
-
     return ApplyBodyOutput(
         block_gas_used,
         root(transactions_trie),
         root(receipts_trie),
         block_logs_bloom,
         state_root(state),
-        root(withdrawals_trie),
         blob_gas_used,
-        requests_hash,
     )
-
-
-def process_general_purpose_requests(
-    deposit_requests: Bytes,
-    state: State,
-    block_hashes: List[Hash32],
-    coinbase: Address,
-    block_number: Uint,
-    base_fee_per_gas: Uint,
-    block_gas_limit: Uint,
-    block_time: U256,
-    prev_randao: Bytes32,
-    chain_id: U64,
-    excess_blob_gas: U64,
-) -> List[Bytes]:
-    """
-    Process all the requests in the block.
-
-    Parameters
-    ----------
-    deposit_requests :
-        The deposit requests.
-    state :
-        Current state.
-    block_hashes :
-        List of hashes of the previous 256 blocks.
-    coinbase :
-        Address of the block's coinbase.
-    block_number :
-        Block number.
-    base_fee_per_gas :
-        Base fee per gas.
-    block_gas_limit :
-        Initial amount of gas available for execution in this block.
-    block_time :
-        Time the block was produced.
-    prev_randao :
-        The previous randao from the beacon chain.
-    chain_id :
-        ID of the executing chain.
-    excess_blob_gas :
-        Excess blob gas.
-
-    Returns
-    -------
-    requests_from_execution : `List[Bytes]`
-        The requests from the execution
-    """
-    # Requests are to be in ascending order of request type
-    requests_from_execution: List[Bytes] = []
-    if len(deposit_requests) > 0:
-        requests_from_execution.append(DEPOSIT_REQUEST_TYPE + deposit_requests)
-
-    system_withdrawal_tx_output = process_system_transaction(
-        WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS,
-        b"",
-        block_hashes,
-        coinbase,
-        block_number,
-        base_fee_per_gas,
-        block_gas_limit,
-        block_time,
-        prev_randao,
-        state,
-        chain_id,
-        excess_blob_gas,
-    )
-
-    if len(system_withdrawal_tx_output.return_data) > 0:
-        requests_from_execution.append(
-            WITHDRAWAL_REQUEST_TYPE + system_withdrawal_tx_output.return_data
-        )
-
-    system_consolidation_tx_output = process_system_transaction(
-        CONSOLIDATION_REQUEST_PREDEPLOY_ADDRESS,
-        b"",
-        block_hashes,
-        coinbase,
-        block_number,
-        base_fee_per_gas,
-        block_gas_limit,
-        block_time,
-        prev_randao,
-        state,
-        chain_id,
-        excess_blob_gas,
-    )
-
-    if len(system_consolidation_tx_output.return_data) > 0:
-        requests_from_execution.append(
-            CONSOLIDATION_REQUEST_TYPE
-            + system_consolidation_tx_output.return_data
-        )
-
-    return requests_from_execution
 
 
 def process_transaction(
@@ -1010,9 +817,7 @@ def process_transaction(
     # For EIP-7623 we first calculate the execution_gas_used, which includes
     # the execution gas refund.
     execution_gas_used = tx.gas - output.gas_left
-    gas_refund = min(
-        execution_gas_used // Uint(5), Uint(output.refund_counter)
-    )
+    gas_refund = min(execution_gas_used // Uint(5), Uint(output.refund_counter))
     execution_gas_used -= gas_refund
 
     # Transactions with less execution_gas_used than the floor pay at the
@@ -1027,9 +832,9 @@ def process_transaction(
     transaction_fee = total_gas_used * priority_fee_per_gas
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = get_account(env.state, sender).balance + U256(
+        gas_refund_amount
+    )
     set_account_balance(env.state, sender, sender_balance_after_refund)
 
     # transfer miner fees
@@ -1037,9 +842,7 @@ def process_transaction(
         env.state, env.coinbase
     ).balance + U256(transaction_fee)
     if coinbase_balance_after_mining_fee != 0:
-        set_account_balance(
-            env.state, env.coinbase, coinbase_balance_after_mining_fee
-        )
+        set_account_balance(env.state, env.coinbase, coinbase_balance_after_mining_fee)
     elif account_exists_and_is_empty(env.state, env.coinbase):
         destroy_account(env.state, env.coinbase)
 
