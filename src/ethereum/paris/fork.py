@@ -50,7 +50,7 @@ from .trie import Trie, root, trie_set
 from .utils.message import prepare_message
 from .vm.interpreter import process_message_call
 
-BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(8)
+BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(32)
 ELASTICITY_MULTIPLIER = Uint(2)
 GAS_LIMIT_ADJUSTMENT_FACTOR = Uint(1024)
 GAS_LIMIT_MINIMUM = Uint(5000)
@@ -230,22 +230,16 @@ def calculate_base_fee_per_gas(
             Uint(1),
         )
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas + base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
         target_fee_gas_delta = parent_fee_gas_delta // parent_gas_target
 
-        base_fee_per_gas_delta = (
-            target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
-        )
+        base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas - base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
 
     return Uint(expected_base_fee_per_gas)
 
@@ -475,18 +469,16 @@ def apply_body(
         Output of applying the block body to the state.
     """
     gas_available = block_gas_limit
-    transactions_trie: Trie[
-        Bytes, Optional[Union[Bytes, LegacyTransaction]]
-    ] = Trie(secured=False, default=None)
+    transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = Trie(
+        secured=False, default=None
+    )
     receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = Trie(
         secured=False, default=None
     )
     block_logs: Tuple[Log, ...] = ()
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
-        trie_set(
-            transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx)
-        )
+        trie_set(transactions_trie, rlp.encode(Uint(i)), encode_transaction(tx))
 
         sender_address, effective_gas_price = check_transaction(
             tx, base_fee_per_gas, gas_available, chain_id
@@ -511,9 +503,7 @@ def apply_body(
         gas_used, logs, error = process_transaction(env, tx)
         gas_available -= gas_used
 
-        receipt = make_receipt(
-            tx, error, (block_gas_limit - gas_available), logs
-        )
+        receipt = make_receipt(tx, error, (block_gas_limit - gas_available), logs)
 
         trie_set(
             receipts_trie,
@@ -587,9 +577,7 @@ def process_transaction(
     gas = tx.gas - calculate_intrinsic_cost(tx)
     increment_nonce(env.state, sender)
 
-    sender_balance_after_gas_fee = (
-        Uint(sender_account.balance) - effective_gas_fee
-    )
+    sender_balance_after_gas_fee = Uint(sender_account.balance) - effective_gas_fee
     set_account_balance(env.state, sender, U256(sender_balance_after_gas_fee))
 
     preaccessed_addresses = set()
@@ -619,16 +607,14 @@ def process_transaction(
 
     # For non-1559 transactions env.gas_price == tx.gas_price
     priority_fee_per_gas = env.gas_price - env.base_fee_per_gas
-    transaction_fee = (
-        tx.gas - output.gas_left - gas_refund
-    ) * priority_fee_per_gas
+    transaction_fee = (tx.gas - output.gas_left - gas_refund) * priority_fee_per_gas
 
     total_gas_used = gas_used - gas_refund
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = get_account(env.state, sender).balance + U256(
+        gas_refund_amount
+    )
     set_account_balance(env.state, sender, sender_balance_after_refund)
 
     # transfer miner fees
@@ -636,9 +622,7 @@ def process_transaction(
         env.state, env.coinbase
     ).balance + U256(transaction_fee)
     if coinbase_balance_after_mining_fee != 0:
-        set_account_balance(
-            env.state, env.coinbase, coinbase_balance_after_mining_fee
-        )
+        set_account_balance(env.state, env.coinbase, coinbase_balance_after_mining_fee)
     elif account_exists_and_is_empty(env.state, env.coinbase):
         destroy_account(env.state, env.coinbase)
 
