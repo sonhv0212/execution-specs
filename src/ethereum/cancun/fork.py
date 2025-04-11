@@ -65,13 +65,11 @@ from .vm.gas import (
 )
 from .vm.interpreter import process_message_call
 
-BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(8)
+BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(32)
 ELASTICITY_MULTIPLIER = Uint(2)
 GAS_LIMIT_ADJUSTMENT_FACTOR = Uint(1024)
 GAS_LIMIT_MINIMUM = Uint(5000)
 EMPTY_OMMER_HASH = keccak256(rlp.encode([]))
-SYSTEM_ADDRESS = hex_to_address("0xfffffffffffffffffffffffffffffffffffffffe")
-BEACON_ROOTS_ADDRESS = hex_to_address("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
 SYSTEM_TRANSACTION_GAS = Uint(30000000)
 MAX_BLOB_GAS_PER_BLOCK = Uint(786432)
 VERSIONED_HASH_VERSION_KZG = b"\x01"
