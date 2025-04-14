@@ -143,8 +143,4 @@ class Load(BaseLoad):
             excess_blob_gas = hex_to_u64(raw.get("excessBlobGas"))
             parameters.append(excess_blob_gas)
 
-        if "requestsHash" in raw:
-            requests_hash = hex_to_bytes32(raw.get("requestsHash"))
-            parameters.append(requests_hash)
-
         return self.fork.Header(*parameters)

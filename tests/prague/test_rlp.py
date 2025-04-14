@@ -106,7 +106,6 @@ header = Header(
     parent_beacon_block_root=Bytes32(b"1234567890abcdef1234567890abcdef"),
     blob_gas_used=U64(7),
     excess_blob_gas=U64(8),
-    requests_hash=hash7,
 )
 
 block = Block(

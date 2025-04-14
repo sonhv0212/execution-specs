@@ -73,11 +73,6 @@ class ForkLoad:
         return self._module("fork").HISTORY_SERVE_WINDOW
 
     @property
-    def process_general_purpose_requests(self) -> Any:
-        """process_general_purpose_requests function of the given fork."""
-        return self._module("fork").process_general_purpose_requests
-
-    @property
     def process_system_transaction(self) -> Any:
         """process_system_transaction function of the given fork."""
         return self._module("fork").process_system_transaction

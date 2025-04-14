@@ -304,8 +304,6 @@ class Result:
     gas_used: Any = None
     excess_blob_gas: Optional[U64] = None
     blob_gas_used: Optional[Uint] = None
-    requests_hash: Optional[Hash32] = None
-    requests: Optional[List[Bytes]] = None
 
     def to_json(self) -> Any:
         """Encode the result to JSON"""
@@ -344,13 +342,5 @@ class Result:
             }
             for item in self.receipts
         ]
-
-        if self.requests_hash is not None:
-            assert self.requests is not None
-
-            data["requestsHash"] = encode_to_hex(self.requests_hash)
-            # T8N doesn't consider the request type byte to be part of the
-            # request
-            data["requests"] = [encode_to_hex(req) for req in self.requests]
 
         return data
