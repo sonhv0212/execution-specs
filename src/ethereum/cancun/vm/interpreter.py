@@ -11,6 +11,7 @@ Introduction
 
 A straightforward interpreter that executes EVM code.
 """
+
 from dataclasses import dataclass
 from typing import Iterable, Optional, Set, Tuple, Union
 
@@ -61,7 +62,7 @@ from .instructions import Ops, op_implementation
 from .runtime import get_valid_jump_destinations
 
 STACK_DEPTH_LIMIT = Uint(1024)
-MAX_CODE_SIZE = 0x6000
+MAX_CODE_SIZE = 0x8000
 
 
 @dataclass
@@ -87,9 +88,7 @@ class MessageCallOutput:
     error: Optional[Exception]
 
 
-def process_message_call(
-    message: Message, env: Environment
-) -> MessageCallOutput:
+def process_message_call(message: Message, env: Environment) -> MessageCallOutput:
     """
     If `message.current` is empty then it creates a smart contract
     else it executes a call from the `message.caller` to the `message.target`.
@@ -133,9 +132,7 @@ def process_message_call(
         touched_accounts = evm.touched_accounts
         refund_counter = U256(evm.refund_counter)
 
-    tx_end = TransactionEnd(
-        int(message.gas) - int(evm.gas_left), evm.output, evm.error
-    )
+    tx_end = TransactionEnd(int(message.gas) - int(evm.gas_left), evm.output, evm.error)
     evm_trace(evm, tx_end)
 
     return MessageCallOutput(
@@ -231,9 +228,7 @@ def process_message(message: Message, env: Environment) -> Evm:
     touch_account(env.state, message.current_target)
 
     if message.should_transfer_value and message.value != 0:
-        move_ether(
-            env.state, message.caller, message.current_target, message.value
-        )
+        move_ether(env.state, message.caller, message.current_target, message.value)
 
     evm = execute_code(message, env)
     if evm.error:
