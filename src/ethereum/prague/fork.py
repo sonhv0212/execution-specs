@@ -174,11 +174,15 @@ def state_transition(chain: BlockChain, block: Block) -> None:
     parent_header = chain.blocks[-1].header
     excess_blob_gas = calculate_excess_blob_gas(parent_header)
     if block.header.excess_blob_gas != excess_blob_gas:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Excess blob gas {block.header.excess_blob_gas} != {excess_blob_gas}"
+        )
 
     validate_header(block.header, parent_header)
     if block.ommers != ():
-        raise InvalidBlock
+        raise InvalidBlock(
+            "Ommers are not supported in this fork. "
+        )
     apply_body_output = apply_body(
         chain.state,
         get_last_256_block_hashes(chain),
@@ -197,15 +201,25 @@ def state_transition(chain: BlockChain, block: Block) -> None:
             f"{apply_body_output.block_gas_used} != {block.header.gas_used}"
         )
     if apply_body_output.transactions_root != block.header.transactions_root:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"{apply_body_output.transactions_root} != {block.header.transactions_root}"
+        )
     if apply_body_output.state_root != block.header.state_root:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"{apply_body_output.state_root} != {block.header.state_root}"
+        )
     if apply_body_output.receipt_root != block.header.receipt_root:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"{apply_body_output.receipt_root} != {block.header.receipt_root}"
+        )
     if apply_body_output.block_logs_bloom != block.header.bloom:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"{apply_body_output.block_logs_bloom} != {block.header.bloom}"
+        )
     if apply_body_output.blob_gas_used != block.header.blob_gas_used:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"{apply_body_output.blob_gas_used} != {block.header.blob_gas_used}"
+        )
 
     chain.blocks.append(block)
     if len(chain.blocks) > 255:
@@ -241,7 +255,9 @@ def calculate_base_fee_per_gas(
     """
     parent_gas_target = parent_gas_limit // ELASTICITY_MULTIPLIER
     if not check_gas_limit(block_gas_limit, parent_gas_limit):
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Block gas limit {block_gas_limit} is not valid with parent gas limit {parent_gas_limit}"
+        )
 
     if parent_gas_used == parent_gas_target:
         expected_base_fee_per_gas = parent_base_fee_per_gas
@@ -289,7 +305,9 @@ def validate_header(header: Header, parent_header: Header) -> None:
         Parent Header of the header to check for correctness
     """
     if header.gas_used > header.gas_limit:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Gas used {header.gas_used} > gas limit {header.gas_limit}"
+        )
 
     expected_base_fee_per_gas = calculate_base_fee_per_gas(
         header.gas_limit,
@@ -298,23 +316,39 @@ def validate_header(header: Header, parent_header: Header) -> None:
         parent_header.base_fee_per_gas,
     )
     if expected_base_fee_per_gas != header.base_fee_per_gas:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Base fee per gas {header.base_fee_per_gas} != {expected_base_fee_per_gas}"
+        )
     if header.timestamp <= parent_header.timestamp:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Timestamp {header.timestamp} <= parent timestamp {parent_header.timestamp}"
+        )
     if header.number != parent_header.number + Uint(1):
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Block number {header.number} != parent block number {parent_header.number} + 1"
+        )
     if len(header.extra_data) > 32:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Extra data length {len(header.extra_data)} > 32"
+        )
     if header.difficulty != 0:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Difficulty {header.difficulty} != 0"
+        )
     if header.nonce != b"\x00\x00\x00\x00\x00\x00\x00\x00":
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Nonce {header.nonce} != 0"
+        )
     if header.ommers_hash != EMPTY_OMMER_HASH:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Ommers hash {header.ommers_hash} != empty ommer hash {EMPTY_OMMER_HASH}"
+        )
 
     block_parent_hash = keccak256(rlp.encode(parent_header))
     if header.parent_hash != block_parent_hash:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Parent hash {header.parent_hash} != block parent hash {block_parent_hash}"
+        )
 
 
 def check_transaction(
@@ -364,9 +398,13 @@ def check_transaction(
 
     if isinstance(tx, (FeeMarketTransaction, BlobTransaction, SetCodeTransaction)):
         if tx.max_fee_per_gas < tx.max_priority_fee_per_gas:
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"max_fee_per_gas {tx.max_fee_per_gas} < max_priority_fee_per_gas {tx.max_priority_fee_per_gas}"
+            )
         if tx.max_fee_per_gas < base_fee_per_gas:
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"max_fee_per_gas {tx.max_fee_per_gas} < base_fee_per_gas {base_fee_per_gas}"
+            )
 
         priority_fee_per_gas = min(
             tx.max_priority_fee_per_gas,
@@ -376,20 +414,28 @@ def check_transaction(
         max_gas_fee = tx.gas * tx.max_fee_per_gas
     else:
         if tx.gas_price < base_fee_per_gas:
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"gas_price {tx.gas_price} < base_fee_per_gas {base_fee_per_gas}"
+            )
         effective_gas_price = tx.gas_price
         max_gas_fee = tx.gas * tx.gas_price
 
     if isinstance(tx, BlobTransaction):
         if len(tx.blob_versioned_hashes) == 0:
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"Blob transaction {tx} has no blob versioned hashes"
+            )
         for blob_versioned_hash in tx.blob_versioned_hashes:
             if blob_versioned_hash[0:1] != VERSIONED_HASH_VERSION_KZG:
-                raise InvalidBlock
+                raise InvalidBlock(
+                    f"Blob versioned hash {blob_versioned_hash} is not KZG"
+                )
 
         blob_gas_price = calculate_blob_gas_price(excess_blob_gas)
         if Uint(tx.max_fee_per_blob_gas) < blob_gas_price:
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"max_fee_per_blob_gas {tx.max_fee_per_blob_gas} < blob gas price {blob_gas_price}"
+            )
 
         max_gas_fee += calculate_total_blob_gas(tx) * Uint(tx.max_fee_per_blob_gas)
         blob_versioned_hashes = tx.blob_versioned_hashes
@@ -398,16 +444,24 @@ def check_transaction(
 
     if isinstance(tx, (BlobTransaction, SetCodeTransaction)):
         if not isinstance(tx.to, Address):
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"Transaction {tx} has invalid to address {tx.to}"
+            )
 
     if isinstance(tx, SetCodeTransaction):
         if not any(tx.authorizations):
-            raise InvalidBlock
+            raise InvalidBlock(
+                f"Transaction {tx} has no authorizations"
+            )
 
     if sender_account.nonce != tx.nonce:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Nonce {tx.nonce} != sender nonce {sender_account.nonce}"
+        )
     if Uint(sender_account.balance) < max_gas_fee + Uint(tx.value):
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Sender balance {sender_account.balance} < max gas fee {max_gas_fee} + value {tx.value}"
+        )
     if sender_account.code != bytearray() and not is_valid_delegation(
         sender_account.code
     ):
@@ -715,7 +769,9 @@ def apply_body(
         block_logs += logs
         blob_gas_used += calculate_total_blob_gas(tx)
     if blob_gas_used > MAX_BLOB_GAS_PER_BLOCK:
-        raise InvalidBlock
+        raise InvalidBlock(
+            f"Blob gas used {blob_gas_used} > max blob gas per block {MAX_BLOB_GAS_PER_BLOCK}"
+        )
     block_gas_used = block_gas_limit - gas_available
 
     block_logs_bloom = logs_bloom(block_logs)
