@@ -63,7 +63,7 @@ from .instructions import Ops, op_implementation
 from .runtime import get_valid_jump_destinations
 
 STACK_DEPTH_LIMIT = Uint(1024)
-MAX_CODE_SIZE = 0x6000
+MAX_CODE_SIZE = 0x8000
 
 
 @dataclass
@@ -133,9 +133,7 @@ def process_message_call(message: Message) -> MessageCallOutput:
         touched_accounts = evm.touched_accounts
         refund_counter += U256(evm.refund_counter)
 
-    tx_end = TransactionEnd(
-        int(message.gas) - int(evm.gas_left), evm.output, evm.error
-    )
+    tx_end = TransactionEnd(int(message.gas) - int(evm.gas_left), evm.output, evm.error)
     evm_trace(evm, tx_end)
 
     return MessageCallOutput(
@@ -233,9 +231,7 @@ def process_message(message: Message) -> Evm:
     touch_account(state, message.current_target)
 
     if message.should_transfer_value and message.value != 0:
-        move_ether(
-            state, message.caller, message.current_target, message.value
-        )
+        move_ether(state, message.caller, message.current_target, message.value)
 
     evm = execute_code(message)
     if evm.error:
