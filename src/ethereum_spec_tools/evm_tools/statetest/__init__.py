@@ -88,7 +88,6 @@ def run_test_case(
         env["blockHashes"] = {"0": env["previousHash"]}
     except KeyError:
         env["blockHashes"] = {}
-    env["withdrawals"] = []
 
     alloc = deepcopy(test_case.pre)
 
@@ -187,15 +186,11 @@ class StateTest:
     Run one or more state tests.
     """
 
-    def __init__(
-        self, options: Any, out_file: TextIO, in_file: TextIO
-    ) -> None:
+    def __init__(self, options: Any, out_file: TextIO, in_file: TextIO) -> None:
         self.file = options.file
         self.out_file = out_file
         self.in_file = in_file
-        self.supported_forks = tuple(
-            x.casefold() for x in get_supported_forks()
-        )
+        self.supported_forks = tuple(x.casefold() for x in get_supported_forks())
         self.trace: bool = options.json
         self.memory: bool = options.memory
         self.stack: bool = options.stack
@@ -269,9 +264,9 @@ class StateTest:
             if not passed:
                 actual = result.state_root.hex()
                 expected = test_case.post["hash"][2:]
-                result_dict[
-                    "error"
-                ] = f"post state root mismatch: got {actual}, want {expected}"
+                result_dict["error"] = (
+                    f"post state root mismatch: got {actual}, want {expected}"
+                )
 
             results.append(result_dict)
 

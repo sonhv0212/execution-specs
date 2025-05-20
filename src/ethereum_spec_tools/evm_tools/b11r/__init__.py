@@ -28,12 +28,7 @@ def b11r_arguments(subparsers: argparse._SubParsersAction) -> None:
     b11r_parser.add_argument(
         "--input.txs", dest="input_txs", type=str, default="txs.rlp"
     )
-    b11r_parser.add_argument(
-        "--input.withdrawals", dest="input_withdrawals", type=str
-    )
-    b11r_parser.add_argument(
-        "--output.basedir", dest="output_basedir", type=str
-    )
+    b11r_parser.add_argument("--output.basedir", dest="output_basedir", type=str)
     b11r_parser.add_argument(
         "--output.block", dest="output_block", type=str, default="block.json"
     )
@@ -56,9 +51,7 @@ def b11r_arguments(subparsers: argparse._SubParsersAction) -> None:
         type=str,
         default="normal",
     )
-    b11r_parser.add_argument(
-        "--verbosity", dest="verbosity", type=int, default=3
-    )
+    b11r_parser.add_argument("--verbosity", dest="verbosity", type=int, default=3)
 
 
 class B11R:
@@ -107,9 +100,6 @@ class B11R:
             self.body.transactions,
             self.body.ommers,
         ]
-
-        if self.body.withdrawals is not None:
-            block.append(self.body.withdrawals)
 
         self.block_rlp = rlp.encode(block)
         self.block_hash = keccak256(rlp.encode(header_to_list))

@@ -30,19 +30,6 @@ from .transactions import (
 
 @slotted_freezable
 @dataclass
-class Withdrawal:
-    """
-    Withdrawals that have been validated on the consensus layer.
-    """
-
-    index: U64
-    validator_index: U64
-    address: Address
-    amount: U256
-
-
-@slotted_freezable
-@dataclass
 class Header:
     """
     Header portion of a block on the chain.
@@ -64,11 +51,8 @@ class Header:
     prev_randao: Bytes32
     nonce: Bytes8
     base_fee_per_gas: Uint
-    withdrawals_root: Root
     blob_gas_used: U64
     excess_blob_gas: U64
-    parent_beacon_block_root: Root
-    requests_hash: Hash32
 
 
 @slotted_freezable
@@ -81,7 +65,6 @@ class Block:
     header: Header
     transactions: Tuple[Union[Bytes, LegacyTransaction], ...]
     ommers: Tuple[Header, ...]
-    withdrawals: Tuple[Withdrawal, ...]
 
 
 @slotted_freezable

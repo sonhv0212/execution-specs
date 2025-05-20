@@ -3,7 +3,7 @@ from ethereum_rlp import rlp
 from ethereum_types.bytes import Bytes, Bytes0, Bytes8, Bytes32
 from ethereum_types.numeric import U64, U256, Uint
 
-from ethereum.cancun.blocks import Block, Header, Log, Receipt, Withdrawal
+from ethereum.cancun.blocks import Block, Header, Log, Receipt
 from ethereum.cancun.transactions import (
     Access,
     AccessListTransaction,
@@ -88,8 +88,6 @@ transaction_1559 = FeeMarketTransaction(
     U256(6),
 )
 
-withdrawal = Withdrawal(U64(0), U64(1), address1, U256(2))
-
 
 header = Header(
     parent_hash=hash1,
@@ -108,8 +106,6 @@ header = Header(
     prev_randao=Bytes32(b"1234567890abcdef1234567890abcdef"),
     nonce=Bytes8(b"12345678"),
     base_fee_per_gas=Uint(6),
-    withdrawals_root=hash6,
-    parent_beacon_block_root=Bytes32(b"1234567890abcdef1234567890abcdef"),
     blob_gas_used=U64(7),
     excess_blob_gas=U64(8),
 )
@@ -122,7 +118,6 @@ block = Block(
         encode_transaction(transaction_1559),
     ),
     ommers=(),
-    withdrawals=(withdrawal,),
 )
 
 log1 = Log(
@@ -156,7 +151,6 @@ receipt = Receipt(
         log1,
         log2,
         receipt,
-        withdrawal,
     ],
 )
 def test_cancun_rlp(rlp_object: rlp.Extended) -> None:

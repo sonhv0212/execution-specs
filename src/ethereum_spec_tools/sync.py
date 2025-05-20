@@ -235,9 +235,7 @@ class BlockDownloader(ForkTracking):
         with request.urlopen(post) as response:
             replies = json.load(response)
             if not isinstance(replies, list):
-                self.log.error(
-                    "got non-list JSON-RPC response. replies=%r", replies
-                )
+                self.log.error("got non-list JSON-RPC response. replies=%r", replies)
                 raise ValueError
 
             block_rlps: Dict[Uint, Union[RpcError, bytes]] = {}
@@ -246,9 +244,7 @@ class BlockDownloader(ForkTracking):
                 try:
                     reply_id = Uint(int(reply["id"], 0))
                 except Exception:
-                    self.log.exception(
-                        "unable to parse RPC id. reply=%r", reply
-                    )
+                    self.log.exception("unable to parse RPC id. reply=%r", reply)
                     raise
 
                 if reply_id < first or reply_id >= first + count:
@@ -283,9 +279,7 @@ class BlockDownloader(ForkTracking):
                     self.advance_block(timestamp)
                     try:
                         blocks.append(
-                            rlp.decode_to(
-                                self.module("blocks").Block, block_rlp
-                            )
+                            rlp.decode_to(self.module("blocks").Block, block_rlp)
                         )
                     except Exception:
                         self.log.exception(
@@ -308,10 +302,7 @@ class BlockDownloader(ForkTracking):
                     self.module("utils.hexadecimal").hex_to_address(
                         sublist.get("address")
                     ),
-                    [
-                        hex_to_bytes32(key)
-                        for key in sublist.get("storageKeys")
-                    ],
+                    [hex_to_bytes32(key) for key in sublist.get("storageKeys")],
                 )
             )
         if hasattr(self.module("transactions"), "LegacyTransaction"):
@@ -322,9 +313,7 @@ class BlockDownloader(ForkTracking):
                         hex_to_u256(t["nonce"]),
                         hex_to_u256(t["gasPrice"]),
                         hex_to_u256(t["gas"]),
-                        self.module("utils.hexadecimal").hex_to_address(
-                            t["to"]
-                        )
+                        self.module("utils.hexadecimal").hex_to_address(t["to"])
                         if t["to"]
                         else Bytes0(b""),
                         hex_to_u256(t["value"]),
@@ -343,9 +332,7 @@ class BlockDownloader(ForkTracking):
                         hex_to_u256(t["maxPriorityFeePerGas"]),
                         hex_to_u256(t["maxFeePerGas"]),
                         hex_to_u256(t["gas"]),
-                        self.module("utils.hexadecimal").hex_to_address(
-                            t["to"]
-                        )
+                        self.module("utils.hexadecimal").hex_to_address(t["to"])
                         if t["to"]
                         else Bytes0(b""),
                         hex_to_u256(t["value"]),
@@ -454,9 +441,7 @@ class BlockDownloader(ForkTracking):
             ommers = self.fetch_ommers(ommers_needed)
             for id in block_jsons:
                 self.advance_block(hex_to_u256(block_jsons[id]["timestamp"]))
-                blocks[id] = self.make_block(
-                    block_jsons[id], ommers.get(id, ())
-                )
+                blocks[id] = self.make_block(block_jsons[id], ommers.get(id, ()))
 
             self.log.info("blocks [%d, %d) fetched", first, first + count)
 
@@ -517,9 +502,9 @@ class BlockDownloader(ForkTracking):
                         reply["error"]["message"],
                     )
                 else:
-                    ommers[reply_id // twenty][
-                        reply_id % twenty
-                    ] = self.make_header(reply["result"])
+                    ommers[reply_id // twenty][reply_id % twenty] = self.make_header(
+                        reply["result"]
+                    )
 
             self.log.info(
                 "ommers [%d, %d] fetched",
@@ -528,8 +513,7 @@ class BlockDownloader(ForkTracking):
             )
 
             return {
-                k: tuple(x for (_, x) in sorted(v.items()))
-                for (k, v) in ommers.items()
+                k: tuple(x for (_, x) in sorted(v.items())) for (k, v) in ommers.items()
             }
 
     def make_header(self, json: Any) -> Any:
@@ -555,8 +539,6 @@ class BlockDownloader(ForkTracking):
         ]
         if hasattr(self.module("blocks").Header, "base_fee_per_gas"):
             fields.append(hex_to_uint(json["baseFeePerGas"]))
-        if hasattr(self.module("blocks").Header, "withdrawals_root"):
-            fields.append(hex_to_bytes32(json["withdrawalsRoot"]))
         return self.module("blocks").Header(*fields)
 
     def make_block(self, json: Any, ommers: Any) -> Any:
@@ -568,23 +550,7 @@ class BlockDownloader(ForkTracking):
         for t in json["transactions"]:
             transactions.append(self.load_transaction(t))
 
-        if json.get("withdrawals") is not None:
-            withdrawals = []
-            for j in json["withdrawals"]:
-                withdrawals.append(
-                    self.module("blocks").Withdrawal(
-                        hex_to_u64(j["index"]),
-                        hex_to_u64(j["validatorIndex"]),
-                        self.module("utils.hexadecimal").hex_to_address(
-                            j["address"]
-                        ),
-                        hex_to_u256(j["amount"]),
-                    )
-                )
-
         extra_fields = []
-        if hasattr(self.module("blocks").Block, "withdrawals"):
-            extra_fields.append(withdrawals)
 
         return self.module("blocks").Block(
             header,
@@ -728,9 +694,7 @@ class Sync(ForkTracking):
                 self.log.error("--persist is not supported with --unoptimized")
                 exit(1)
             if self.options.initial_state is not None:
-                self.log.error(
-                    "--initial-state is not supported with --unoptimized"
-                )
+                self.log.error("--initial-state is not supported with --unoptimized")
                 exit(1)
             if self.options.reset:
                 self.log.error("--reset is not supported with --unoptimized")
@@ -738,9 +702,7 @@ class Sync(ForkTracking):
 
         if self.options.persist is None:
             if self.options.initial_state is not None:
-                self.log.error(
-                    "--initial_state is not supported without --persist"
-                )
+                self.log.error("--initial_state is not supported without --persist")
                 exit(1)
             if self.options.reset:
                 self.log.error("--reset is not supported without --persist")
@@ -767,9 +729,7 @@ class Sync(ForkTracking):
 
         if self.options.initial_state is not None:
             assert self.options.persist is not None
-            if not os.path.exists(
-                os.path.join(self.options.persist, "mdbx.dat")
-            ):
+            if not os.path.exists(os.path.join(self.options.persist, "mdbx.dat")):
                 try:
                     os.mkdir(self.options.persist)
                 except FileExistsError:
@@ -786,9 +746,7 @@ class Sync(ForkTracking):
 
         if self.options.persist is not None:
             state_mod = self.module("state")
-            persisted_block_opt = state_mod.get_metadata(
-                state, b"block_number"
-            )
+            persisted_block_opt = state_mod.get_metadata(state, b"block_number")
             persisted_block_timestamp_opt = state_mod.get_metadata(
                 state, b"block_timestamp"
             )
@@ -796,9 +754,7 @@ class Sync(ForkTracking):
             if persisted_block_opt is not None:
                 persisted_block = Uint(int(persisted_block_opt))
             if persisted_block_timestamp_opt is not None:
-                persisted_block_timestamp = U256(
-                    int(persisted_block_timestamp_opt)
-                )
+                persisted_block_timestamp = U256(int(persisted_block_timestamp_opt))
 
         if persisted_block is None or persisted_block_timestamp is None:
             self.chain = self.module("fork").BlockChain(
@@ -934,8 +890,7 @@ class Sync(ForkTracking):
                 last_committed_block = block.header.number
 
                 self.log.info(
-                    "imported chain segment "
-                    "count=%d mgas=%f mgasps=%f block=%d",
+                    "imported chain segment count=%d mgas=%f mgasps=%f block=%d",
                     count,
                     m_gas,
                     m_gas_per_second,
@@ -953,9 +908,7 @@ class Sync(ForkTracking):
             try:
                 self.process_block(block)
             except Exception:
-                self.log.exception(
-                    "failed to process block %d", block.header.number
-                )
+                self.log.exception("failed to process block %d", block.header.number)
                 raise
 
             # Additional gas to account for block overhead
@@ -984,16 +937,14 @@ class Sync(ForkTracking):
                 persist()
                 return
 
-            if self.block_number > Uint(2220000) and self.block_number < Uint(
-                2463000
-            ):
+            if self.block_number > Uint(2220000) and self.block_number < Uint(2463000):
                 # Excessive DB load due to the Shanghai DOS attacks, requires
                 # more regular DB commits
                 if gas_since_last_commit > self.options.gas_per_commit / 10:
                     persist()
-            elif self.block_number > Uint(
-                2675000
-            ) and self.block_number < Uint(2700598):
+            elif self.block_number > Uint(2675000) and self.block_number < Uint(
+                2700598
+            ):
                 # Excessive DB load due to state clearing, requires more
                 # regular DB commits
                 if gas_since_last_commit > self.options.gas_per_commit / 10:
@@ -1005,10 +956,7 @@ class Sync(ForkTracking):
         """
         Process a single block.
         """
-        if (
-            self.advance_block(block.header.timestamp)
-            or self.block_number == 1
-        ):
+        if self.advance_block(block.header.timestamp) or self.block_number == 1:
             self.log.debug("applying %s fork...", self.active_fork.name)
             start = time.monotonic()
             self.chain = self.module("fork").apply_fork(self.chain)
@@ -1025,8 +973,7 @@ class Sync(ForkTracking):
 
         if block.header.number != self.block_number:
             raise Exception(
-                f"expected block {self.block_number} "
-                f"but got {block.header.number}"
+                f"expected block {self.block_number} but got {block.header.number}"
             )
 
         self.log.debug("applying block %d...", self.block_number)

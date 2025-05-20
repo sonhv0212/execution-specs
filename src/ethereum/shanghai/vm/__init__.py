@@ -22,7 +22,7 @@ from ethereum_types.numeric import U64, U256, Uint
 from ethereum.crypto.hash import Hash32
 from ethereum.exceptions import EthereumException
 
-from ..blocks import Log, Receipt, Withdrawal
+from ..blocks import Log, Receipt
 from ..fork_types import Address
 from ..state import State
 from ..transactions import LegacyTransaction
@@ -66,22 +66,17 @@ class BlockOutput:
     block_logs : `Bloom`
         Logs bloom of all the logs included in all the transactions of the
         block.
-    withdrawals_trie : `ethereum.fork_types.Root`
-        Trie root of all the withdrawals in the block.
     """
 
     block_gas_used: Uint = Uint(0)
-    transactions_trie: Trie[
-        Bytes, Optional[Union[Bytes, LegacyTransaction]]
-    ] = field(default_factory=lambda: Trie(secured=False, default=None))
+    transactions_trie: Trie[Bytes, Optional[Union[Bytes, LegacyTransaction]]] = field(
+        default_factory=lambda: Trie(secured=False, default=None)
+    )
     receipts_trie: Trie[Bytes, Optional[Union[Bytes, Receipt]]] = field(
         default_factory=lambda: Trie(secured=False, default=None)
     )
     receipt_keys: Tuple[Bytes, ...] = field(default_factory=tuple)
     block_logs: Tuple[Log, ...] = field(default_factory=tuple)
-    withdrawals_trie: Trie[Bytes, Optional[Union[Bytes, Withdrawal]]] = field(
-        default_factory=lambda: Trie(secured=False, default=None)
-    )
 
 
 @dataclass

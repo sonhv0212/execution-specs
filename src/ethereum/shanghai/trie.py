@@ -40,7 +40,7 @@ from ethereum.crypto.hash import keccak256
 from ethereum.paris import trie as previous_trie
 from ethereum.utils.hexadecimal import hex_to_bytes
 
-from .blocks import Receipt, Withdrawal
+from .blocks import Receipt
 from .fork_types import Account, Address, Root, encode_account
 from .transactions import LegacyTransaction
 
@@ -64,7 +64,7 @@ EMPTY_TRIE_ROOT = Root(
 )
 
 Node = Union[
-    Account, Bytes, LegacyTransaction, Receipt, Uint, U256, Withdrawal, None
+    Account, Bytes, LegacyTransaction, Receipt, Uint, U256, None
 ]
 K = TypeVar("K", bound=Bytes)
 V = TypeVar(
@@ -74,7 +74,6 @@ V = TypeVar(
     Bytes,
     Optional[Union[LegacyTransaction, Bytes]],
     Optional[Union[Receipt, Bytes]],
-    Optional[Union[Withdrawal, Bytes]],
     Uint,
     U256,
 )
@@ -183,7 +182,7 @@ def encode_node(node: Node, storage_root: Optional[Bytes] = None) -> Bytes:
     if isinstance(node, Account):
         assert storage_root is not None
         return encode_account(node, storage_root)
-    elif isinstance(node, (LegacyTransaction, Receipt, Withdrawal, U256)):
+    elif isinstance(node, (LegacyTransaction, Receipt, U256)):
         return rlp.encode(node)
     elif isinstance(node, Bytes):
         return node

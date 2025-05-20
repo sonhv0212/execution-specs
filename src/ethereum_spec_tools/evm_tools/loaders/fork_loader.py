@@ -48,29 +48,14 @@ class ForkLoad:
         return return_value
 
     @property
-    def BEACON_ROOTS_ADDRESS(self) -> Any:
-        """BEACON_ROOTS_ADDRESS of the given fork."""
-        return self._module("fork").BEACON_ROOTS_ADDRESS
-
-    @property
     def HISTORY_STORAGE_ADDRESS(self) -> Any:
         """HISTORY_STORAGE_ADDRESS of the given fork."""
         return self._module("fork").HISTORY_STORAGE_ADDRESS
 
     @property
-    def process_general_purpose_requests(self) -> Any:
-        """process_general_purpose_requests function of the given fork."""
-        return self._module("fork").process_general_purpose_requests
-
-    @property
     def process_unchecked_system_transaction(self) -> Any:
         """process_unchecked_system_transaction function of the given fork."""
         return self._module("fork").process_unchecked_system_transaction
-
-    @property
-    def process_withdrawals(self) -> Any:
-        """process_withdrawals function of the given fork."""
-        return self._module("fork").process_withdrawals
 
     @property
     def calculate_block_difficulty(self) -> Any:
@@ -163,11 +148,6 @@ class ForkLoad:
         return self._module("blocks").decode_receipt
 
     @property
-    def compute_requests_hash(self) -> Any:
-        """compute_requests_hash function of the fork"""
-        return self._module("requests").compute_requests_hash
-
-    @property
     def Bloom(self) -> Any:
         """Bloom class of the fork"""
         return self._module("fork_types").Bloom
@@ -221,11 +201,6 @@ class ForkLoad:
     def SetCodeTransaction(self) -> Any:
         """Set code transaction class of the fork"""
         return self._module("transactions").SetCodeTransaction
-
-    @property
-    def Withdrawal(self) -> Any:
-        """Withdrawal class of the fork"""
-        return self._module("blocks").Withdrawal
 
     @property
     def encode_transaction(self) -> Any:

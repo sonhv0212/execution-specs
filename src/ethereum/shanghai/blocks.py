@@ -8,6 +8,7 @@ Together, these blocks form a cryptographically secure journal recording the
 history of all state transitions that have happened since the genesis of the
 chain.
 """
+
 from dataclasses import dataclass
 from typing import Tuple, Union
 
@@ -24,19 +25,6 @@ from .transactions import (
     LegacyTransaction,
     Transaction,
 )
-
-
-@slotted_freezable
-@dataclass
-class Withdrawal:
-    """
-    Withdrawals that have been validated on the consensus layer.
-    """
-
-    index: U64
-    validator_index: U64
-    address: Address
-    amount: U256
 
 
 @slotted_freezable
@@ -62,7 +50,6 @@ class Header:
     prev_randao: Bytes32
     nonce: Bytes8
     base_fee_per_gas: Uint
-    withdrawals_root: Root
 
 
 @slotted_freezable
@@ -75,7 +62,6 @@ class Block:
     header: Header
     transactions: Tuple[Union[Bytes, LegacyTransaction], ...]
     ommers: Tuple[Header, ...]
-    withdrawals: Tuple[Withdrawal, ...]
 
 
 @slotted_freezable
