@@ -27,7 +27,7 @@ from ethereum.exceptions import (
 )
 
 from . import vm
-from .blocks import Block, Header, Log, Receipt, Withdrawal, encode_receipt
+from .blocks import Block, Header, Log, Receipt, encode_receipt
 from .bloom import logs_bloom
 from .fork_types import Account, Address
 from .state import (
@@ -177,18 +177,14 @@ def state_transition(chain: BlockChain, block: Block) -> None:
     block_output = apply_body(
         block_env=block_env,
         transactions=block.transactions,
-        withdrawals=block.withdrawals,
     )
     block_state_root = state_root(block_env.state)
     transactions_root = root(block_output.transactions_trie)
     receipt_root = root(block_output.receipts_trie)
     block_logs_bloom = logs_bloom(block_output.block_logs)
-    withdrawals_root = root(block_output.withdrawals_trie)
 
     if block_output.block_gas_used != block.header.gas_used:
-        raise InvalidBlock(
-            f"{block_output.block_gas_used} != {block.header.gas_used}"
-        )
+        raise InvalidBlock(f"{block_output.block_gas_used} != {block.header.gas_used}")
     if transactions_root != block.header.transactions_root:
         raise InvalidBlock
     if block_state_root != block.header.state_root:
@@ -196,8 +192,6 @@ def state_transition(chain: BlockChain, block: Block) -> None:
     if receipt_root != block.header.receipt_root:
         raise InvalidBlock
     if block_logs_bloom != block.header.bloom:
-        raise InvalidBlock
-    if withdrawals_root != block.header.withdrawals_root:
         raise InvalidBlock
 
     chain.blocks.append(block)
@@ -249,22 +243,16 @@ def calculate_base_fee_per_gas(
             Uint(1),
         )
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas + base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
         target_fee_gas_delta = parent_fee_gas_delta // parent_gas_target
 
-        base_fee_per_gas_delta = (
-            target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
-        )
+        base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas - base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
 
     return Uint(expected_base_fee_per_gas)
 
@@ -423,7 +411,6 @@ def make_receipt(
 def apply_body(
     block_env: vm.BlockEnvironment,
     transactions: Tuple[Union[LegacyTransaction, Bytes], ...],
-    withdrawals: Tuple[Withdrawal, ...],
 ) -> vm.BlockOutput:
     """
     Executes a block.
@@ -443,8 +430,6 @@ def apply_body(
         The block output for the current block.
     transactions :
         Transactions included in the block.
-    withdrawals :
-        Withdrawals to be processed in the current block.
 
     Returns
     -------
@@ -455,8 +440,6 @@ def apply_body(
 
     for i, tx in enumerate(map(decode_transaction, transactions)):
         process_transaction(block_env, block_output, tx, Uint(i))
-
-    process_withdrawals(block_env, block_output, withdrawals)
 
     return block_output
 
@@ -514,12 +497,8 @@ def process_transaction(
     gas = tx.gas - intrinsic_gas
     increment_nonce(block_env.state, sender)
 
-    sender_balance_after_gas_fee = (
-        Uint(sender_account.balance) - effective_gas_fee
-    )
-    set_account_balance(
-        block_env.state, sender, U256(sender_balance_after_gas_fee)
-    )
+    sender_balance_after_gas_fee = Uint(sender_account.balance) - effective_gas_fee
+    set_account_balance(block_env.state, sender, U256(sender_balance_after_gas_fee))
 
     access_list_addresses = set()
     access_list_storage_keys = set()
@@ -556,9 +535,9 @@ def process_transaction(
     transaction_fee = tx_gas_used * priority_fee_per_gas
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        block_env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = get_account(block_env.state, sender).balance + U256(
+        gas_refund_amount
+    )
     set_account_balance(block_env.state, sender, sender_balance_after_refund)
 
     # transfer miner fees
@@ -592,66 +571,6 @@ def process_transaction(
     )
 
     block_output.block_logs += tx_output.logs
-
-
-def process_withdrawals(
-    block_env: vm.BlockEnvironment,
-    block_output: vm.BlockOutput,
-    withdrawals: Tuple[Withdrawal, ...],
-) -> None:
-    """
-    Increase the balance of the withdrawing account.
-    """
-
-    def increase_recipient_balance(recipient: Account) -> None:
-        recipient.balance += wd.amount * U256(10**9)
-
-    for i, wd in enumerate(withdrawals):
-        trie_set(
-            block_output.withdrawals_trie,
-            rlp.encode(Uint(i)),
-            rlp.encode(wd),
-        )
-
-        modify_state(block_env.state, wd.address, increase_recipient_balance)
-
-        if account_exists_and_is_empty(block_env.state, wd.address):
-            destroy_account(block_env.state, wd.address)
-
-
-def compute_header_hash(header: Header) -> Hash32:
-    """
-    Computes the hash of a block header.
-
-    The header hash of a block is the canonical hash that is used to refer
-    to a specific block and completely distinguishes a block from another.
-
-    ``keccak256`` is a function that produces a 256 bit hash of any input.
-    It also takes in any number of bytes as an input and produces a single
-    hash for them. A hash is a completely unique output for a single input.
-    So an input corresponds to one unique hash that can be used to identify
-    the input exactly.
-
-    Prior to using the ``keccak256`` hash function, the header must be
-    encoded using the Recursive-Length Prefix. See :ref:`rlp`.
-    RLP encoding the header converts it into a space-efficient format that
-    allows for easy transfer of data between nodes. The purpose of RLP is to
-    encode arbitrarily nested arrays of binary data, and RLP is the primary
-    encoding method used to serialize objects in Ethereum's execution layer.
-    The only purpose of RLP is to encode structure; encoding specific data
-    types (e.g. strings, floats) is left up to higher-order protocols.
-
-    Parameters
-    ----------
-    header :
-        Header of interest.
-
-    Returns
-    -------
-    hash : `ethereum.crypto.hash.Hash32`
-        Hash of the header.
-    """
-    return keccak256(rlp.encode(header))
 
 
 def check_gas_limit(gas_limit: Uint, parent_gas_limit: Uint) -> bool:

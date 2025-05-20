@@ -43,11 +43,6 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
         (),
         (),
     ]
-    if hasattr(genesis_header, "withdrawals_root"):
-        parameters.append(())
-
-    if hasattr(genesis_header, "requests_root"):
-        parameters.append(())
 
     genesis_block = load.fork.Block(*parameters)
 
@@ -62,9 +57,7 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
         chain_id=U64(json_data["genesisBlockHeader"].get("chainId", 1)),
     )
 
-    mock_pow = (
-        json_data["sealEngine"] == "NoProof" and not load.fork.proof_of_stake
-    )
+    mock_pow = json_data["sealEngine"] == "NoProof" and not load.fork.proof_of_stake
 
     for json_block in json_data["blocks"]:
         block_exception = None
@@ -92,9 +85,7 @@ def run_blockchain_st_test(test_case: Dict, load: Load) -> None:
     load.fork.close_state(expected_post_state)
 
 
-def add_block_to_chain(
-    chain: Any, json_block: Any, load: Load, mock_pow: bool
-) -> None:
+def add_block_to_chain(chain: Any, json_block: Any, load: Load, mock_pow: bool) -> None:
     (
         block,
         block_header_hash,
@@ -107,9 +98,7 @@ def add_block_to_chain(
     if not mock_pow:
         load.fork.state_transition(chain, block)
     else:
-        fork_module = importlib.import_module(
-            f"ethereum.{load.fork.fork_module}.fork"
-        )
+        fork_module = importlib.import_module(f"ethereum.{load.fork.fork_module}.fork")
         with patch.object(
             fork_module,
             "validate_proof_of_work",
@@ -172,9 +161,7 @@ def fetch_state_test_files(
     else:
         # If there isn't a custom list, iterate over the test_dir
         all_jsons = [
-            y
-            for x in os.walk(test_dir)
-            for y in glob(os.path.join(x[0], "*.json"))
+            y for x in os.walk(test_dir) for y in glob(os.path.join(x[0], "*.json"))
         ]
 
         for full_path in all_jsons:
@@ -190,11 +177,7 @@ def fetch_state_test_files(
                 # _identifier could identify files, folders through test_file
                 #  individual cases through test_key
                 _identifier = (
-                    "("
-                    + _test_case["test_file"]
-                    + "|"
-                    + _test_case["test_key"]
-                    + ")"
+                    "(" + _test_case["test_file"] + "|" + _test_case["test_key"] + ")"
                 )
                 if any(x.search(_identifier) for x in all_ignore):
                     continue

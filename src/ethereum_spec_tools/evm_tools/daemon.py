@@ -23,16 +23,13 @@ def daemon_arguments(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument("--uds", help="Unix domain socket path")
     parser.add_argument(
         "--timeout",
-        help="Timeout to shutdown daemon if there are not requests"
-        " (0 for no timeout)",
+        help="Timeout to shutdown daemon if there are not requests (0 for no timeout)",
         type=int,
     )
 
 
 class _EvmToolHandler(BaseHTTPRequestHandler):
-    def log_request(
-        self, code: int | str = "-", size: int | str = "-"
-    ) -> None:
+    def log_request(self, code: int | str = "-", size: int | str = "-") -> None:
         """Don't log requests"""
         pass
 
@@ -64,8 +61,7 @@ class _EvmToolHandler(BaseHTTPRequestHandler):
         if trace:
             if not output_basedir:
                 raise ValueError(
-                    "`output-basedir` should be provided when `--trace` "
-                    "is enabled."
+                    "`output-basedir` should be provided when `--trace` is enabled."
                 )
             # send full trace output if ``trace`` is ``True``
             args.extend(
@@ -95,7 +91,8 @@ class _EvmToolHandler(BaseHTTPRequestHandler):
         # satisfy the bounds for `TextIOWrapper`. Fortunately nothing uses
         # `name` so far, so we can safely ignore the error.
         with TextIOWrapper(
-            self.wfile, encoding="utf-8"  # type: ignore[type-var]
+            self.wfile,
+            encoding="utf-8",  # type: ignore[type-var]
         ) as out_wrapper:
             main(args=args, out_file=out_wrapper, in_file=input)
 
@@ -104,9 +101,7 @@ class _UnixSocketHttpServer(socketserver.UnixStreamServer):
     last_response: float
     shutdown_timeout: int
 
-    def __init__(
-        self, *args: Any, shutdown_timeout: int, **kwargs: Any
-    ) -> None:
+    def __init__(self, *args: Any, shutdown_timeout: int, **kwargs: Any) -> None:
         self.shutdown_timeout = shutdown_timeout
         # Add a 60-second allowance to prevent server from timing out during
         # startup

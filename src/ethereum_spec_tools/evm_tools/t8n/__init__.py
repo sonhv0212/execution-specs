@@ -63,9 +63,7 @@ def t8n_arguments(subparsers: argparse._SubParsersAction) -> None:
     t8n_parser.add_argument(
         "--state.fork", dest="state_fork", type=str, default="Frontier"
     )
-    t8n_parser.add_argument(
-        "--state.reward", dest="state_reward", type=int, default=0
-    )
+    t8n_parser.add_argument("--state.reward", dest="state_reward", type=int, default=0)
     t8n_parser.add_argument("--trace", action="store_true")
     t8n_parser.add_argument("--trace.memory", action="store_true")
     t8n_parser.add_argument("--trace.nomemory", action="store_true")
@@ -79,9 +77,7 @@ def t8n_arguments(subparsers: argparse._SubParsersAction) -> None:
 class T8N(Load):
     """The class that carries out the transition"""
 
-    def __init__(
-        self, options: Any, out_file: TextIO, in_file: TextIO
-    ) -> None:
+    def __init__(self, options: Any, out_file: TextIO, in_file: TextIO) -> None:
         self.out_file = out_file
         self.in_file = in_file
         self.options = options
@@ -96,9 +92,7 @@ class T8N(Load):
         else:
             stdin = None
 
-        fork_module, self.fork_block = get_module_name(
-            self.forks, self.options, stdin
-        )
+        fork_module, self.fork_block = get_module_name(self.forks, self.options, stdin)
         self.fork = ForkLoad(fork_module)
 
         if self.options.trace:
@@ -123,9 +117,7 @@ class T8N(Load):
         self.alloc = Alloc(self, stdin)
         self.env = Env(self, stdin)
         self.txs = Txs(self, stdin)
-        self.result = Result(
-            self.env.block_difficulty, self.env.base_fee_per_gas
-        )
+        self.result = Result(self.env.block_difficulty, self.env.base_fee_per_gas)
 
     def block_environment(self) -> Any:
         """
@@ -151,9 +143,6 @@ class T8N(Load):
             kw_arguments["difficulty"] = self.env.block_difficulty
 
         if self.fork.is_after_fork("ethereum.cancun"):
-            kw_arguments[
-                "parent_beacon_block_root"
-            ] = self.env.parent_beacon_block_root
             kw_arguments["excess_blob_gas"] = self.env.excess_blob_gas
 
         return self.fork.BlockEnvironment(**kw_arguments)
@@ -163,10 +152,7 @@ class T8N(Load):
         state = self.alloc.state
         self.alloc.state_backup = (
             self.fork.copy_trie(state._main_trie),
-            {
-                k: self.fork.copy_trie(t)
-                for (k, t) in state._storage_tries.items()
-            },
+            {k: self.fork.copy_trie(t) for (k, t) in state._storage_tries.items()},
         )
 
     def restore_state(self) -> None:
@@ -216,21 +202,10 @@ class T8N(Load):
                     raise_on_error=False,
                 )
 
-            if self.fork.is_after_fork("ethereum.cancun"):
-                self.fork.process_system_transaction(
-                    block_env=block_env,
-                    target_address=self.fork.BEACON_ROOTS_ADDRESS,
-                    data=block_env.parent_beacon_block_root,
-                    raise_on_empty_code=False,
-                    raise_on_error=False,
-                )
-
             for i, tx in zip(self.txs.successfully_parsed, self.txs.transactions):
                 self.backup_state()
                 try:
-                    self.fork.process_transaction(
-                        block_env, block_output, tx, Uint(i)
-                    )
+                    self.fork.process_transaction(block_env, block_output, tx, Uint(i))
                 except EthereumException as e:
                     self.txs.rejected_txs[i] = f"Failed transaction: {e!r}"
                     self.restore_state()
@@ -244,17 +219,9 @@ class T8N(Load):
                     self.env.ommers,
                 )
 
-            if self.fork.is_after_fork("ethereum.shanghai"):
-                self.fork.process_withdrawals(
-                    block_env, block_output, self.env.withdrawals
-                )
-
-            if self.fork.is_after_fork("ethereum.prague"):
-                self.fork.process_general_purpose_requests(block_env, block_output)
-
         except InvalidBlock as e:
             self.result.block_exception = f"{e}"
-        
+
         self.result.update(self, block_env, block_output)
         self.result.rejected = self.txs.rejected_txs
 
@@ -275,9 +242,7 @@ class T8N(Load):
             file_path = os.path.join(self.options.output_basedir, file)
 
             # Check if the file matches the specific names or the pattern
-            if file in files_to_delete or fnmatch.fnmatch(
-                file, pattern_to_delete
-            ):
+            if file in files_to_delete or fnmatch.fnmatch(file, pattern_to_delete):
                 os.remove(file_path)
 
         try:
