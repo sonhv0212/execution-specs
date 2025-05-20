@@ -65,7 +65,7 @@ from .vm.gas import (
 )
 from .vm.interpreter import MessageCallOutput, process_message_call
 
-BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(8)
+BASE_FEE_MAX_CHANGE_DENOMINATOR = Uint(32)
 ELASTICITY_MULTIPLIER = Uint(2)
 GAS_LIMIT_ADJUSTMENT_FACTOR = Uint(1024)
 GAS_LIMIT_MINIMUM = Uint(5000)
