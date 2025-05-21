@@ -79,6 +79,7 @@ MAX_BLOB_GAS_PER_BLOCK = U64(1179648)
 VERSIONED_HASH_VERSION_KZG = b"\x01"
 HISTORY_STORAGE_ADDRESS = hex_to_address("0x0000F90827F1C53a10cb7A02335B175320002935")
 HISTORY_SERVE_WINDOW = 8192
+MINIMUM_BASE_FEE = Uint(1000000000)
 
 
 @dataclass
@@ -266,6 +267,9 @@ def calculate_base_fee_per_gas(
 
         expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
+        if parent_base_fee_per_gas < MINIMUM_BASE_FEE:
+            return MINIMUM_BASE_FEE
+
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
@@ -273,7 +277,9 @@ def calculate_base_fee_per_gas(
 
         base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
+        expected_base_fee_per_gas = max(
+            parent_base_fee_per_gas - base_fee_per_gas_delta, MINIMUM_BASE_FEE
+        )
 
     return Uint(expected_base_fee_per_gas)
 

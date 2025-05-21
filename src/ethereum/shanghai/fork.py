@@ -61,6 +61,7 @@ ELASTICITY_MULTIPLIER = Uint(2)
 GAS_LIMIT_ADJUSTMENT_FACTOR = Uint(1024)
 GAS_LIMIT_MINIMUM = Uint(5000)
 EMPTY_OMMER_HASH = keccak256(rlp.encode([]))
+MINIMUM_BASE_FEE = Uint(1000000000)
 
 
 @dataclass
@@ -245,6 +246,9 @@ def calculate_base_fee_per_gas(
 
         expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
+        if parent_base_fee_per_gas < MINIMUM_BASE_FEE:
+            return MINIMUM_BASE_FEE
+
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
@@ -252,7 +256,9 @@ def calculate_base_fee_per_gas(
 
         base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = parent_base_fee_per_gas - base_fee_per_gas_delta
+        expected_base_fee_per_gas = max(
+            parent_base_fee_per_gas - base_fee_per_gas_delta, MINIMUM_BASE_FEE
+        )
 
     return Uint(expected_base_fee_per_gas)
 

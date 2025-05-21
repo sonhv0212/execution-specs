@@ -66,6 +66,7 @@ MINIMUM_DIFFICULTY = Uint(131072)
 MAX_OMMER_DEPTH = Uint(6)
 BOMB_DELAY_BLOCKS = 10700000
 EMPTY_OMMER_HASH = keccak256(rlp.encode([]))
+MINIMUM_BASE_FEE = Uint(1000000000)
 
 
 @dataclass
@@ -189,9 +190,7 @@ def state_transition(chain: BlockChain, block: Block) -> None:
     block_logs_bloom = logs_bloom(block_output.block_logs)
 
     if block_output.block_gas_used != block.header.gas_used:
-        raise InvalidBlock(
-            f"{block_output.block_gas_used} != {block.header.gas_used}"
-        )
+        raise InvalidBlock(f"{block_output.block_gas_used} != {block.header.gas_used}")
     if transactions_root != block.header.transactions_root:
         raise InvalidBlock
     if block_state_root != block.header.state_root:
@@ -250,21 +249,20 @@ def calculate_base_fee_per_gas(
             Uint(1),
         )
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas + base_fee_per_gas_delta
-        )
+        expected_base_fee_per_gas = parent_base_fee_per_gas + base_fee_per_gas_delta
     else:
+        if parent_base_fee_per_gas < MINIMUM_BASE_FEE:
+            return MINIMUM_BASE_FEE
+
         gas_used_delta = parent_gas_target - parent_gas_used
 
         parent_fee_gas_delta = parent_base_fee_per_gas * gas_used_delta
         target_fee_gas_delta = parent_fee_gas_delta // parent_gas_target
 
-        base_fee_per_gas_delta = (
-            target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
-        )
+        base_fee_per_gas_delta = target_fee_gas_delta // BASE_FEE_MAX_CHANGE_DENOMINATOR
 
-        expected_base_fee_per_gas = (
-            parent_base_fee_per_gas - base_fee_per_gas_delta
+        expected_base_fee_per_gas = max(
+            parent_base_fee_per_gas - base_fee_per_gas_delta, MINIMUM_BASE_FEE
         )
 
     return Uint(expected_base_fee_per_gas)
@@ -300,9 +298,7 @@ def validate_header(chain: BlockChain, header: Header) -> None:
     ):
         raise InvalidBlock
 
-    parent_header = chain.blocks[
-        parent_header_number - first_block_number
-    ].header
+    parent_header = chain.blocks[parent_header_number - first_block_number].header
 
     if header.gas_used > header.gas_limit:
         raise InvalidBlock
@@ -599,8 +595,7 @@ def validate_ommers(
 
     recent_canonical_blocks = chain.blocks[-(MAX_OMMER_DEPTH + Uint(1)) :]
     recent_canonical_block_hashes = {
-        keccak256(rlp.encode(block.header))
-        for block in recent_canonical_blocks
+        keccak256(rlp.encode(block.header)) for block in recent_canonical_blocks
     }
     recent_ommers_hashes: Set[Hash32] = set()
     for block in recent_canonical_blocks:
@@ -723,12 +718,8 @@ def process_transaction(
     gas = tx.gas - intrinsic_gas
     increment_nonce(block_env.state, sender)
 
-    sender_balance_after_gas_fee = (
-        Uint(sender_account.balance) - effective_gas_fee
-    )
-    set_account_balance(
-        block_env.state, sender, U256(sender_balance_after_gas_fee)
-    )
+    sender_balance_after_gas_fee = Uint(sender_account.balance) - effective_gas_fee
+    set_account_balance(block_env.state, sender, U256(sender_balance_after_gas_fee))
 
     access_list_addresses = set()
     access_list_storage_keys = set()
@@ -764,9 +755,9 @@ def process_transaction(
     transaction_fee = tx_gas_used * priority_fee_per_gas
 
     # refund gas
-    sender_balance_after_refund = get_account(
-        block_env.state, sender
-    ).balance + U256(gas_refund_amount)
+    sender_balance_after_refund = get_account(block_env.state, sender).balance + U256(
+        gas_refund_amount
+    )
     set_account_balance(block_env.state, sender, sender_balance_after_refund)
 
     # transfer miner fees
